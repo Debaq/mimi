@@ -1,0 +1,27 @@
+# Dependencies
+frontend/node_modules/
+frontend/.vite/
+
+# Build output
+frontend/dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend data
+backend/data/*.db
+
+# Logs
+*.log
