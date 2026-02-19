@@ -276,23 +276,18 @@ $router->post('/api/sessions/{id}/join', function ($router) {
     $stmt = $db->prepare('INSERT INTO session_students (session_id, student_id, status) VALUES (?, ?, ?)');
     $stmt->execute(array($sessionId, $user['id'], 'activo'));
 
-    // Otorgar XP por unirse
-    $xpEarned = 10;
-    $stmt = $db->prepare('UPDATE users SET xp = xp + ? WHERE id = ?');
-    $stmt->execute(array($xpEarned, $user['id']));
-
     // Registrar actividad
     $stmt = $db->prepare(
         'INSERT INTO activity_log (user_id, action, xp_earned, details) VALUES (?, ?, ?, ?)'
     );
     $stmt->execute(array(
         $user['id'],
-        'unirse_sesion',
-        $xpEarned,
+        'session_joined',
+        0,
         json_encode(array('session_id' => $sessionId, 'title' => $session['title']))
     ));
 
-    Response::success(array('xp_earned' => $xpEarned), 'Te has unido a la sesion exitosamente');
+    Response::success(array('xp_earned' => 0), 'Te has unido a la sesion exitosamente');
 });
 
 // GET /api/sessions/{id}/students - Listar estudiantes de sesion (solo docente)

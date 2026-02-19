@@ -12,8 +12,11 @@ import {
   Users,
   FolderOpen,
   Library,
+  Moon,
+  Sun,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useUiStore } from '@/stores/uiStore'
 import { cn } from '@/lib/utils'
 
 const studentLinks = [
@@ -33,9 +36,18 @@ const teacherLinks = [
 export default function Navbar() {
   const { user, isStudent, isTeacher, logout } = useAuth()
   const navigate = useNavigate()
+  const { theme, setTheme } = useUiStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+  function toggleTheme() {
+    setTheme(isDark ? 'light' : 'dark')
+  }
 
   const links = isStudent ? studentLinks : isTeacher ? teacherLinks : []
 
@@ -79,8 +91,17 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* Right side: avatar + dropdown */}
+        {/* Right side: theme toggle + avatar + dropdown */}
         <div className="flex items-center gap-3">
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:bg-secondary hover:text-foreground"
+            aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          >
+            {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
+
           {/* User dropdown (desktop) */}
           <div className="relative hidden md:block" ref={dropdownRef}>
             <button

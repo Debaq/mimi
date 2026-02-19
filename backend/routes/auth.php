@@ -181,3 +181,92 @@ $router->get('/api/auth/me', function ($router) {
 
     Response::success($user);
 });
+
+// POST /api/auth/avatar - Subir avatar del usuario [AUTH]
+$router->post('/api/auth/avatar', function ($router) {
+    $user = Middleware::authenticate();
+
+    // Verificar que se envio un archivo
+    if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] === UPLOAD_ERR_NO_FILE) {
+        Response::error('No se envio ningun archivo', 400);
+    }
+
+    $file = $_FILES['avatar'];
+
+    // Verificar errores de subida
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $uploadErrors = array(
+            UPLOAD_ERR_INI_SIZE => 'El archivo excede el tamano maximo permitido por el servidor',
+            UPLOAD_ERR_FORM_SIZE => 'El archivo excede el tamano maximo permitido por el formulario',
+            UPLOAD_ERR_PARTIAL => 'El archivo se subio parcialmente',
+            UPLOAD_ERR_NO_TMP_DIR => 'No se encontro el directorio temporal',
+            UPLOAD_ERR_CANT_WRITE => 'Error al escribir el archivo en disco',
+            UPLOAD_ERR_EXTENSION => 'Una extension de PHP detuvo la subida',
+        );
+        $errorMsg = isset($uploadErrors[$file['error']])
+            ? $uploadErrors[$file['error']]
+            : 'Error desconocido al subir el archivo';
+        Response::error($errorMsg, 400);
+    }
+
+    // Validar tamano maximo: 2MB
+    $maxSize = 2 * 1024 * 1024;
+    if ($file['size'] > $maxSize) {
+        Response::error('El archivo excede el tamano maximo de 2MB', 400);
+    }
+
+    // Validar tipo MIME (debe ser imagen)
+    $allowedMimes = array(
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    );
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = $finfo->file($file['tmp_name']);
+
+    if (!isset($allowedMimes[$mimeType])) {
+        Response::error('Tipo de archivo no permitido. Solo se aceptan: JPEG, PNG, GIF, WebP', 400);
+    }
+
+    $extension = $allowedMimes[$mimeType];
+
+    // Generar nombre unico
+    $filename = 'avatar_' . $user['id'] . '_' . time() . '.' . $extension;
+    $uploadDir = APP_ROOT . '/uploads/avatars/';
+    $destPath = $uploadDir . $filename;
+
+    // Crear directorio si no existe
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    // Eliminar avatar anterior si existe
+    $db = Database::getInstance();
+    if (!empty($user['avatar_url'])) {
+        $oldFilePath = APP_ROOT . $user['avatar_url'];
+        if (file_exists($oldFilePath)) {
+            unlink($oldFilePath);
+        }
+    }
+
+    // Mover archivo subido al destino
+    if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+        Response::error('Error al guardar el archivo', 500);
+    }
+
+    // Actualizar avatar_url en la base de datos
+    $avatarUrl = '/uploads/avatars/' . $filename;
+    $stmt = $db->prepare('UPDATE users SET avatar_url = ? WHERE id = ?');
+    $stmt->execute(array($avatarUrl, $user['id']));
+
+    // Obtener usuario actualizado
+    $stmt = $db->prepare('SELECT id, name, email, role, level, xp, avatar_url, created_at FROM users WHERE id = ?');
+    $stmt->execute(array($user['id']));
+    $updatedUser = $stmt->fetch();
+
+    Response::success(array(
+        'user' => $updatedUser
+    ), 'Avatar actualizado exitosamente');
+});

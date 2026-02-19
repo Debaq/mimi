@@ -63,19 +63,14 @@ $router->post('/api/protocols', function ($router) {
 
     $protocolId = $db->lastInsertId();
 
-    // Otorgar XP por iniciar protocolo
-    $xpEarned = 15;
-    $stmt = $db->prepare('UPDATE users SET xp = xp + ? WHERE id = ?');
-    $stmt->execute(array($xpEarned, $user['id']));
-
     // Registrar actividad
     $stmt = $db->prepare(
         'INSERT INTO activity_log (user_id, action, xp_earned, details) VALUES (?, ?, ?, ?)'
     );
     $stmt->execute(array(
         $user['id'],
-        'crear_protocolo',
-        $xpEarned,
+        'protocol_started',
+        0,
         json_encode(array('protocol_id' => $protocolId, 'session_id' => $body['session_id']))
     ));
 
@@ -90,7 +85,7 @@ $router->post('/api/protocols', function ($router) {
 
     Response::success(array(
         'protocol' => $protocol,
-        'xp_earned' => $xpEarned
+        'xp_earned' => 0
     ), 'Protocolo creado exitosamente');
 });
 
@@ -233,9 +228,9 @@ $router->put('/api/protocols/{id}', function ($router) {
             );
             $stmt->execute(array(
                 $protocol['student_id'],
-                'avance_protocolo',
+                'step_completed',
                 $xpEarned,
-                json_encode(array('protocol_id' => $protocolId, 'from_step' => $oldStep, 'to_step' => $newStep))
+                json_encode(array('protocol_id' => $protocolId, 'from_step' => $oldStep, 'to_step' => $newStep, 'step' => $newStep))
             ));
 
             // Verificar subida de nivel
@@ -373,7 +368,7 @@ $router->post('/api/protocols/{id}/submit', function ($router) {
     $stmt->execute(array('enviado', $protocolId));
 
     // XP por enviar
-    $xpEarned = 50;
+    $xpEarned = 200;
     $stmt = $db->prepare('UPDATE users SET xp = xp + ? WHERE id = ?');
     $stmt->execute(array($xpEarned, $user['id']));
 
@@ -385,7 +380,7 @@ $router->post('/api/protocols/{id}/submit', function ($router) {
     );
     $stmt->execute(array(
         $user['id'],
-        'enviar_protocolo',
+        'protocol_submitted',
         $xpEarned,
         json_encode(array('protocol_id' => $protocolId))
     ));
@@ -436,7 +431,7 @@ $router->put('/api/protocols/{id}/review', function ($router) {
 
     // Si fue aprobado, dar XP extra al estudiante
     if ($newStatus === 'aprobado') {
-        $xpEarned = 100;
+        $xpEarned = 300;
         $stmt = $db->prepare('UPDATE users SET xp = xp + ? WHERE id = ?');
         $stmt->execute(array($xpEarned, $protocol['student_id']));
 
@@ -448,7 +443,7 @@ $router->put('/api/protocols/{id}/review', function ($router) {
         );
         $stmt->execute(array(
             $protocol['student_id'],
-            'protocolo_aprobado',
+            'protocol_approved',
             $xpEarned,
             json_encode(array('protocol_id' => $protocolId, 'reviewer' => $user['name']))
         ));
@@ -573,19 +568,33 @@ $router->put('/api/defenses/{id}', function ($router) {
     $stmt->execute(array($body['response'], $score, $status, $defenseId));
 
     // XP por responder defensa
-    $xpEarned = $score >= 60 ? 30 : 10;
+    $xpEarned = $score >= 60 ? 75 : 10;
     $stmt = $db->prepare('UPDATE users SET xp = xp + ? WHERE id = ?');
     $stmt->execute(array($xpEarned, $defense['student_id']));
 
-    $stmt = $db->prepare(
-        'INSERT INTO activity_log (user_id, action, xp_earned, details) VALUES (?, ?, ?, ?)'
-    );
-    $stmt->execute(array(
-        $defense['student_id'],
-        'responder_defensa',
-        $xpEarned,
-        json_encode(array('defense_id' => $defenseId, 'score' => $score, 'status' => $status))
-    ));
+    if ($score >= 60) {
+        // Defensa aprobada
+        $stmt = $db->prepare(
+            'INSERT INTO activity_log (user_id, action, xp_earned, details) VALUES (?, ?, ?, ?)'
+        );
+        $stmt->execute(array(
+            $defense['student_id'],
+            'defense_passed',
+            75,
+            json_encode(array('defense_id' => $defenseId, 'score' => $score))
+        ));
+    } else {
+        // Defensa no aprobada
+        $stmt = $db->prepare(
+            'INSERT INTO activity_log (user_id, action, xp_earned, details) VALUES (?, ?, ?, ?)'
+        );
+        $stmt->execute(array(
+            $defense['student_id'],
+            'defense_attempted',
+            $xpEarned,
+            json_encode(array('defense_id' => $defenseId, 'score' => $score, 'status' => $status))
+        ));
+    }
 
     checkLevelUp($db, $defense['student_id']);
     checkBadges($db, $defense['student_id']);

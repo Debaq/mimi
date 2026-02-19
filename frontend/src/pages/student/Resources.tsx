@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Search,
   Filter,
@@ -14,17 +14,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Pagination, usePagination } from '@/components/ui/Pagination'
 import { cn } from '@/lib/utils'
 import type { Resource } from '@/types'
-import { api } from '@/lib/api'
-import type { ApiResponse } from '@/types'
-import { useQuery } from '@tanstack/react-query'
-
-function useResourcesQuery() {
-  return useQuery({
-    queryKey: ['resources'],
-    queryFn: () => api.get<ApiResponse<Resource[]>>('/resources'),
-    select: (data) => data.data,
-  })
-}
+import { useResourcesQuery } from '@/hooks/useResources'
 
 type TypeFilter = 'todas' | Resource['type']
 type CategoryFilter = 'todas' | Resource['category']
@@ -75,31 +65,32 @@ function getTypeColor(type: Resource['type']) {
 }
 
 export default function Resources() {
-  const { data: resources, isLoading } = useResourcesQuery()
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todas')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('todas')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null)
   const [page, setPage] = useState(1)
 
-  const filtered = (resources ?? []).filter((r) => {
-    if (typeFilter !== 'todas' && r.type !== typeFilter) return false
-    if (categoryFilter !== 'todas' && r.category !== categoryFilter) return false
-    if (search) {
-      const q = search.toLowerCase()
-      return (
-        r.title.toLowerCase().includes(q) ||
-        r.keywords.toLowerCase().includes(q)
-      )
-    }
-    return true
+  // Debounce search para no hacer requests en cada tecla
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const { data: resources, isLoading } = useResourcesQuery({
+    type: typeFilter,
+    category: categoryFilter,
+    search: debouncedSearch,
   })
+
+  const filtered = resources ?? []
 
   const { totalPages, paginate } = usePagination(filtered, 9)
   const paginated = paginate(page)
 
   // Reset page when filters change
-  const filterKey = `${typeFilter}-${categoryFilter}-${search}`
+  const filterKey = `${typeFilter}-${categoryFilter}-${debouncedSearch}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)

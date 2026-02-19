@@ -81,3 +81,19 @@ html {
     transform: scale(1);
   }
 }
+
+/* Dark mode overrides */
+.dark {
+  --color-background: #1D1D1F;
+  --color-foreground: #F5F5F7;
+  --color-primary: #2997FF;
+  --color-primary-hover: #4DB2FF;
+  --color-secondary: #2C2C2E;
+  --color-muted: #98989D;
+  --color-accent: #5AC8FA;
+  --color-success: #30D158;
+  --color-warning: #FF9F0A;
+  --color-destructive: #FF453A;
+  --color-border: #38383A;
+  --color-card: #2C2C2E;
+}

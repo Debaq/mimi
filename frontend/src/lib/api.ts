@@ -54,8 +54,15 @@ async function request<T>(
 }
 
 export const api = {
-  get<T>(endpoint: string): Promise<T> {
-    return request<T>(endpoint, { method: 'GET' })
+  get<T>(endpoint: string, params?: Record<string, string | undefined>): Promise<T> {
+    let url = endpoint
+    if (params) {
+      const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '') as [string, string][]
+      if (entries.length > 0) {
+        url += '?' + new URLSearchParams(entries).toString()
+      }
+    }
+    return request<T>(url, { method: 'GET' })
   },
 
   post<T>(endpoint: string, data?: unknown): Promise<T> {
@@ -74,6 +81,36 @@ export const api = {
 
   delete<T>(endpoint: string): Promise<T> {
     return request<T>(endpoint, { method: 'DELETE' })
+  },
+
+  async upload<T>(endpoint: string, file: File, fieldName = 'avatar'): Promise<T> {
+    const token = getToken()
+    const formData = new FormData()
+    formData.append(fieldName, file)
+
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+
+    if (!response.ok) {
+      let message = `Error ${response.status}`
+      try {
+        const errorData = await response.json()
+        message = errorData.message || errorData.error || message
+      } catch {
+        // fallback
+      }
+      throw new ApiError(message, response.status)
+    }
+
+    return response.json()
   },
 }
 

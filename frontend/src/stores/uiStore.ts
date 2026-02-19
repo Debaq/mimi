@@ -1,6 +1,25 @@
 import { create } from 'zustand'
 
-type Theme = 'light'
+type Theme = 'light' | 'dark' | 'system'
+
+function applyThemeToDOM(theme: Theme) {
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+  document.documentElement.classList.toggle('dark', isDark)
+}
+
+function getInitialTheme(): Theme {
+  const stored = localStorage.getItem('mimi-theme')
+  if (stored === 'light' || stored === 'dark' || stored === 'system') {
+    return stored
+  }
+  return 'system'
+}
+
+const initialTheme = getInitialTheme()
+applyThemeToDOM(initialTheme)
 
 interface UiState {
   sidebarOpen: boolean
@@ -16,14 +35,18 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   sidebarOpen: true,
-  theme: 'light',
+  theme: initialTheme,
   activeModal: null,
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
   setSidebarOpen: (open: boolean) => set({ sidebarOpen: open }),
 
-  setTheme: (theme: Theme) => set({ theme }),
+  setTheme: (theme: Theme) => {
+    localStorage.setItem('mimi-theme', theme)
+    applyThemeToDOM(theme)
+    set({ theme })
+  },
 
   openModal: (modalId: string) => set({ activeModal: modalId }),
 

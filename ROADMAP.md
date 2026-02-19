@@ -88,12 +88,12 @@ Estado actual del proyecto y lo que falta por implementar.
 
 ### Prioridad MEDIA (completar funcionalidad planificada)
 
-- [ ] **Busqueda y filtros en frontend** — Los endpoints de backend soportan filtros pero el frontend no los implementa todos
-- [ ] **Activity log consistente** — La tabla `activity_log` existe pero no se llena en todas las acciones
+- [x] **Busqueda y filtros en frontend** — Hooks actualizados para pasar filtros al backend (sesiones por status, recursos por tipo/categoria/busqueda con debounce)
+- [x] **Activity log consistente** — Todas las acciones registran en activity_log con nombres y XP consistentes
 - [x] **Notificaciones (Toast)** — Sistema de toasts globales implementado (success/error/info)
-- [ ] **Modo oscuro** — La infraestructura CSS esta lista pero falta el toggle y las variables dark
+- [x] **Modo oscuro** — Toggle en Navbar (Sun/Moon), persistencia en localStorage, soporte para tema del sistema, variables CSS dark
 - [ ] **Recuperacion de contrasena** — No hay flujo de "olvide mi contrasena"
-- [ ] **Subida de avatar** — El campo existe en la DB pero no hay endpoint de upload de archivos
+- [x] **Subida de avatar** — Endpoint POST /api/auth/avatar con validacion MIME y limite 2MB, UI clickeable en perfil
 
 ### Prioridad BAJA (fases futuras del plan)
 

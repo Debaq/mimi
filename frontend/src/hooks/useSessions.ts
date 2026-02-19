@@ -2,11 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Session, ApiResponse, User } from '@/types'
 
-// Obtener lista de sesiones
-export function useSessionsQuery() {
+// Obtener lista de sesiones con filtros opcionales
+export function useSessionsQuery(filters?: { status?: string }) {
   return useQuery({
-    queryKey: ['sessions'],
-    queryFn: () => api.get<ApiResponse<Session[]>>('/sessions'),
+    queryKey: ['sessions', filters],
+    queryFn: () => api.get<ApiResponse<Session[]>>('/sessions', {
+      status: filters?.status,
+    }),
     select: (data) => data.data,
   })
 }

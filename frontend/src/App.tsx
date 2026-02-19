@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastContainer } from '@/components/ui/Toast'
+import { useUiStore } from '@/stores/uiStore'
 
 // Layouts
 import StudentLayout from '@/components/layout/StudentLayout'
@@ -40,6 +42,29 @@ const queryClient = new QueryClient({
 })
 
 export default function App() {
+  const theme = useUiStore((s) => s.theme)
+
+  useEffect(() => {
+    const isDark =
+      theme === 'dark' ||
+      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+    document.documentElement.classList.toggle('dark', isDark)
+  }, [theme])
+
+  // Escuchar cambios en la preferencia del sistema cuando el tema es 'system'
+  useEffect(() => {
+    if (theme !== 'system') return
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e: MediaQueryListEvent) => {
+      document.documentElement.classList.toggle('dark', e.matches)
+    }
+
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [theme])
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
