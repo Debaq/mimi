@@ -171,7 +171,13 @@ export default function StudentSessions() {
                   </div>
 
                   {session.status === 'activa' && (
-                    <Link to={`/constructor/${session.id}`}>
+                    <Link to={
+                      session.mode === 'detective'
+                        ? `/detective/${session.id}`
+                        : session.mode === 'laboratorio'
+                          ? `/laboratory/${session.id}`
+                          : `/constructor/${session.id}`
+                    }>
                       <Button size="sm">
                         Continuar
                       </Button>

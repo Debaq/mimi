@@ -179,6 +179,34 @@ try {
     $db->exec($schemaSql);
     out('Schema ejecutado', 'success', $isCli);
 
+    // Asegurar tabla de rate limiting (proteccion contra fuerza bruta)
+    $db->exec('CREATE TABLE IF NOT EXISTS rate_limits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
+        attempts INTEGER DEFAULT 1,
+        window_start TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(ip_address, endpoint)
+    )');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_rate_limits_ip ON rate_limits(ip_address, endpoint)');
+    out('Tabla rate_limits verificada', 'success', $isCli);
+
+    // Asegurar tabla de certificados digitales
+    $db->exec('CREATE TABLE IF NOT EXISTS certificates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        protocol_id INTEGER NOT NULL UNIQUE,
+        student_id INTEGER NOT NULL,
+        certificate_code TEXT NOT NULL UNIQUE,
+        student_name TEXT NOT NULL,
+        session_title TEXT NOT NULL,
+        approved_at TEXT NOT NULL,
+        issued_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (protocol_id) REFERENCES protocols(id),
+        FOREIGN KEY (student_id) REFERENCES users(id)
+    )');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_certificates_code ON certificates(certificate_code)');
+    out('Tabla certificates verificada', 'success', $isCli);
+
     // === 4. DATOS INICIALES ===
     if (!$isCli) {
         echo '<div class="section">Datos iniciales</div>';
@@ -298,6 +326,188 @@ try {
         $stmtSession->execute($s);
     }
     out('3 sesiones de ejemplo creadas', 'success', $isCli);
+
+    // Insertar sesion de ejemplo tipo detective
+    $stmtSession->execute(array(
+        1,
+        'Detective Metodologico - Grupo A',
+        'Identifica errores en protocolos de investigacion',
+        'detective',
+        1,
+        'activa',
+        null,
+        '2026-02-01',
+        '2026-06-30',
+        1,
+        1
+    ));
+    $detectiveSessionId = $db->lastInsertId();
+    out('Sesion detective de ejemplo creada (ID: ' . $detectiveSessionId . ')', 'success', $isCli);
+
+    // Insertar casos detective de ejemplo
+    $detectiveCases = array(
+        array(
+            $detectiveSessionId,
+            'El Misterio de la Muestra Sesgada',
+            'Un protocolo sobre rendimiento academico y uso de redes sociales presenta varios errores metodologicos. Encuentra todos los problemas.',
+            json_encode(array(
+                'problema' => 'Se ha observado que los estudiantes universitarios que usan redes sociales mas de 4 horas diarias tienen peor rendimiento academico. Se necesita investigar esta relacion.',
+                'pregunta' => 'Las redes sociales afectan negativamente el rendimiento academico de los estudiantes?',
+                'objetivo_general' => 'Demostrar que las redes sociales causan bajo rendimiento academico en universitarios.',
+                'objetivos_especificos' => array(
+                    'Medir el tiempo de uso de redes sociales',
+                    'Obtener el promedio academico de los estudiantes',
+                    'Comprobar la hipotesis planteada'
+                ),
+                'hipotesis' => 'El uso excesivo de redes sociales causa bajo rendimiento academico.',
+                'variables' => array(
+                    array('nombre' => 'Redes sociales', 'tipo' => 'independiente', 'definicion' => 'Uso de redes'),
+                    array('nombre' => 'Rendimiento', 'tipo' => 'dependiente', 'definicion' => 'Notas del estudiante')
+                ),
+                'diseno' => array(
+                    'enfoque' => 'cuantitativo',
+                    'tipo' => 'experimental',
+                    'alcance' => 'correlacional'
+                ),
+                'muestra' => array(
+                    'poblacion' => 'Estudiantes universitarios',
+                    'tamano' => 15,
+                    'tecnica' => 'conveniencia',
+                    'justificacion' => 'Se seleccionaron los estudiantes disponibles en la cafeteria'
+                ),
+                'instrumentos' => array(
+                    array('nombre' => 'Encuesta de redes sociales', 'descripcion' => 'Cuestionario de 5 preguntas abiertas')
+                )
+            )),
+            json_encode(array(
+                array(
+                    'id' => 'err1',
+                    'field' => 'pregunta',
+                    'type' => 'sesgo',
+                    'description' => 'La pregunta de investigacion asume una relacion negativa en vez de ser neutral. Deberia preguntar "cual es la relacion" en vez de "afectan negativamente".',
+                    'hint' => 'Revisa si la pregunta es neutral o ya asume un resultado.',
+                    'severity' => 'alta'
+                ),
+                array(
+                    'id' => 'err2',
+                    'field' => 'objetivo_general',
+                    'type' => 'sesgo',
+                    'description' => 'El objetivo dice "demostrar" y "causan", lo que implica causalidad y un resultado predeterminado. Deberia usar "determinar" o "analizar".',
+                    'hint' => 'Observa el verbo del objetivo general. Es apropiado para investigacion?',
+                    'severity' => 'alta'
+                ),
+                array(
+                    'id' => 'err3',
+                    'field' => 'diseno',
+                    'type' => 'contradiccion',
+                    'description' => 'El diseno dice ser "experimental" pero el alcance es "correlacional". Un estudio correlacional no es experimental; deberia ser no experimental.',
+                    'hint' => 'Compara el tipo de diseno con el alcance. Son compatibles?',
+                    'severity' => 'alta'
+                ),
+                array(
+                    'id' => 'err4',
+                    'field' => 'muestra',
+                    'type' => 'error_logico',
+                    'description' => 'La muestra de 15 estudiantes es insuficiente para un estudio cuantitativo correlacional. Ademas, seleccionar en la cafeteria introduce sesgo de seleccion.',
+                    'hint' => 'El tamano de la muestra es adecuado para las conclusiones que se quieren obtener?',
+                    'severity' => 'media'
+                ),
+                array(
+                    'id' => 'err5',
+                    'field' => 'variables',
+                    'type' => 'ausencia',
+                    'description' => 'Las definiciones operacionales de las variables son demasiado vagas. "Uso de redes" y "Notas del estudiante" no especifican como se mediran concretamente.',
+                    'hint' => 'Las variables tienen definiciones operacionales claras y medibles?',
+                    'severity' => 'media'
+                )
+            )),
+            1,
+            100,
+            30
+        ),
+        array(
+            $detectiveSessionId,
+            'El Caso del Diseno Contradictorio',
+            'Un protocolo sobre ansiedad y actividad fisica contiene incoherencias entre sus secciones. Detecta las contradicciones y errores logicos.',
+            json_encode(array(
+                'problema' => 'La ansiedad es un problema creciente entre adolescentes. Diversos estudios sugieren que la actividad fisica regular puede reducir los niveles de ansiedad, pero no hay evidencia local.',
+                'pregunta' => 'En que medida la practica regular de actividad fisica se relaciona con los niveles de ansiedad en adolescentes de 14 a 18 anos?',
+                'objetivo_general' => 'Analizar la relacion entre la actividad fisica regular y los niveles de ansiedad en adolescentes de 14 a 18 anos de la ciudad.',
+                'objetivos_especificos' => array(
+                    'Medir los niveles de actividad fisica de los adolescentes',
+                    'Evaluar los niveles de ansiedad mediante un instrumento validado',
+                    'Correlacionar ambas variables',
+                    'Comparar los resultados entre hombres y mujeres'
+                ),
+                'hipotesis' => 'Existe una relacion inversa significativa entre la actividad fisica regular y los niveles de ansiedad en adolescentes.',
+                'variables' => array(
+                    array('nombre' => 'Actividad fisica', 'tipo' => 'independiente', 'definicion_conceptual' => 'Movimiento corporal planificado y repetitivo', 'definicion_operacional' => 'Minutos semanales de actividad fisica medidos con el cuestionario IPAQ'),
+                    array('nombre' => 'Ansiedad', 'tipo' => 'dependiente', 'definicion_conceptual' => 'Estado emocional de tension y preocupacion', 'definicion_operacional' => 'Puntaje obtenido en el Inventario de Ansiedad de Beck (BAI)')
+                ),
+                'diseno' => array(
+                    'enfoque' => 'cualitativo',
+                    'tipo' => 'no experimental, transversal',
+                    'alcance' => 'correlacional'
+                ),
+                'muestra' => array(
+                    'poblacion' => 'Adolescentes de 14 a 18 anos de escuelas publicas',
+                    'tamano' => 250,
+                    'tecnica' => 'estratificado por grado escolar',
+                    'justificacion' => 'Calculado con formula de poblaciones finitas con 95% de confianza'
+                ),
+                'instrumentos' => array(
+                    array('nombre' => 'Cuestionario IPAQ', 'descripcion' => 'Cuestionario Internacional de Actividad Fisica, version corta'),
+                    array('nombre' => 'Inventario de Beck (BAI)', 'descripcion' => 'Escala de 21 items para medir ansiedad'),
+                    array('nombre' => 'Entrevista a profundidad', 'descripcion' => 'Guia semiestructurada de 15 preguntas sobre habitos de actividad fisica')
+                )
+            )),
+            json_encode(array(
+                array(
+                    'id' => 'err1',
+                    'field' => 'diseno',
+                    'type' => 'contradiccion',
+                    'description' => 'El enfoque dice "cualitativo" pero se usan instrumentos cuantitativos (IPAQ, BAI con puntajes) y el alcance es correlacional. Deberia ser enfoque cuantitativo o mixto.',
+                    'hint' => 'El enfoque declarado es coherente con los instrumentos y el alcance?',
+                    'severity' => 'alta'
+                ),
+                array(
+                    'id' => 'err2',
+                    'field' => 'instrumentos',
+                    'type' => 'incoherencia',
+                    'description' => 'Se incluye una "entrevista a profundidad" que es un instrumento cualitativo, pero el diseno y analisis planteados son puramente cuantitativos. O se cambia el enfoque a mixto o se elimina la entrevista.',
+                    'hint' => 'Todos los instrumentos son coherentes con el enfoque declarado?',
+                    'severity' => 'media'
+                ),
+                array(
+                    'id' => 'err3',
+                    'field' => 'objetivos_especificos',
+                    'type' => 'ausencia',
+                    'description' => 'El cuarto objetivo especifico (comparar entre hombres y mujeres) introduce una variable (sexo/genero) que no esta definida en la seccion de variables ni se refleja en el objetivo general.',
+                    'hint' => 'Todos los objetivos especificos se derivan del objetivo general y las variables definidas?',
+                    'severity' => 'media'
+                ),
+                array(
+                    'id' => 'err4',
+                    'field' => 'hipotesis',
+                    'type' => 'error_logico',
+                    'description' => 'La hipotesis establece una "relacion inversa significativa" pero la pregunta de investigacion solo pregunta "en que medida" se relacionan. La hipotesis deberia ser coherente con la pregunta sin asumir la direccion.',
+                    'hint' => 'La hipotesis es coherente con lo que pregunta la pregunta de investigacion?',
+                    'severity' => 'baja'
+                )
+            )),
+            2,
+            100,
+            45
+        )
+    );
+
+    $stmtCase = $db->prepare(
+        'INSERT INTO detective_cases (session_id, title, description, protocol_data, errors, difficulty, max_score, time_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    foreach ($detectiveCases as $c) {
+        $stmtCase->execute($c);
+    }
+    out('2 casos detective de ejemplo creados', 'success', $isCli);
 
     $db->commit();
 

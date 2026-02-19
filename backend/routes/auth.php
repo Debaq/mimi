@@ -5,6 +5,8 @@
 
 // POST /api/auth/register - Registrar nuevo usuario
 $router->post('/api/auth/register', function ($router) {
+    Middleware::rateLimit('register', 3, 60);
+
     $request = $router->getRequest();
     $body = $request->body();
 
@@ -83,6 +85,8 @@ $router->post('/api/auth/register', function ($router) {
 
 // POST /api/auth/login - Iniciar sesion
 $router->post('/api/auth/login', function ($router) {
+    Middleware::rateLimit('login', 5, 15);
+
     $request = $router->getRequest();
     $body = $request->body();
 

@@ -51,10 +51,12 @@ require_once __DIR__ . '/core/Response.php';
 require_once __DIR__ . '/core/Auth.php';
 require_once __DIR__ . '/core/Router.php';
 require_once __DIR__ . '/core/Middleware.php';
+require_once __DIR__ . '/core/LTIHelper.php';
 
 // Cargar validadores
 require_once __DIR__ . '/validators/CoherenceValidator.php';
 require_once __DIR__ . '/validators/MicroDefenseGenerator.php';
+require_once __DIR__ . '/validators/DefenseQuestionGenerator.php';
 
 // Verificar que la DB existe
 if (!file_exists(DB_PATH)) {
@@ -71,6 +73,11 @@ require_once __DIR__ . '/routes/protocols.php';
 require_once __DIR__ . '/routes/progress.php';
 require_once __DIR__ . '/routes/resources.php';
 require_once __DIR__ . '/routes/dashboard.php';
+require_once __DIR__ . '/routes/certificates.php';
+require_once __DIR__ . '/routes/detective.php';
+require_once __DIR__ . '/routes/laboratory.php';
+require_once __DIR__ . '/routes/defense.php';
+require_once __DIR__ . '/routes/lms.php';
 
 // Despachar la peticion
 $router->dispatch();

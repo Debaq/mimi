@@ -14,29 +14,35 @@ import {
   Library,
   Moon,
   Sun,
+  Globe,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useUiStore } from '@/stores/uiStore'
+import { useTranslation } from '@/hooks/useTranslation'
 import { cn } from '@/lib/utils'
+import type { Locale } from '@/lib/i18n'
 
-const studentLinks = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/sessions', label: 'Sesiones', icon: BookOpen },
-  { to: '/profile', label: 'Perfil', icon: User },
-  { to: '/resources', label: 'Recursos', icon: FolderOpen },
+type NavLink = { to: string; labelKey: string; icon: React.ComponentType<{ className?: string }> }
+
+const studentLinks: NavLink[] = [
+  { to: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/sessions', labelKey: 'nav.sessions', icon: BookOpen },
+  { to: '/profile', labelKey: 'nav.profile', icon: User },
+  { to: '/resources', labelKey: 'nav.resources', icon: FolderOpen },
 ]
 
-const teacherLinks = [
-  { to: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/teacher/sessions', label: 'Sesiones', icon: BookOpen },
-  { to: '/teacher/students', label: 'Estudiantes', icon: Users },
-  { to: '/teacher/library', label: 'Biblioteca', icon: Library },
+const teacherLinks: NavLink[] = [
+  { to: '/teacher', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/teacher/sessions', labelKey: 'nav.sessions', icon: BookOpen },
+  { to: '/teacher/students', labelKey: 'nav.students', icon: Users },
+  { to: '/teacher/library', labelKey: 'nav.library', icon: Library },
 ]
 
 export default function Navbar() {
   const { user, isStudent, isTeacher, logout } = useAuth()
   const navigate = useNavigate()
-  const { theme, setTheme } = useUiStore()
+  const { theme, setTheme, locale, setLocale } = useUiStore()
+  const { t } = useTranslation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -47,6 +53,11 @@ export default function Navbar() {
 
   function toggleTheme() {
     setTheme(isDark ? 'light' : 'dark')
+  }
+
+  function toggleLocale() {
+    const next: Locale = locale === 'es' ? 'en' : 'es'
+    setLocale(next)
   }
 
   const links = isStudent ? studentLinks : isTeacher ? teacherLinks : []
@@ -66,7 +77,7 @@ export default function Navbar() {
     navigate('/login')
   }
 
-  const roleLabel = user?.role === 'estudiante' ? 'Estudiante' : 'Docente'
+  const roleLabel = user?.role === 'estudiante' ? t('auth.student') : t('auth.teacher')
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-xl">
@@ -86,18 +97,29 @@ export default function Navbar() {
               className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-secondary hover:text-foreground"
             >
               <link.icon className="h-4 w-4" />
-              {link.label}
+              {t(link.labelKey)}
             </Link>
           ))}
         </nav>
 
-        {/* Right side: theme toggle + avatar + dropdown */}
+        {/* Right side: locale toggle + theme toggle + avatar + dropdown */}
         <div className="flex items-center gap-3">
+          {/* Locale toggle */}
+          <button
+            onClick={toggleLocale}
+            className="flex h-9 items-center justify-center gap-1 rounded-xl px-2 text-sm font-medium text-muted transition-colors hover:bg-secondary hover:text-foreground"
+            aria-label={t('nav.language')}
+            title={t('nav.language')}
+          >
+            <Globe className="h-4 w-4" />
+            <span className="uppercase">{locale}</span>
+          </button>
+
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors hover:bg-secondary hover:text-foreground"
-            aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            aria-label={isDark ? t('nav.lightMode') : t('nav.darkMode')}
           >
             {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </button>
@@ -126,7 +148,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
                 >
                   <User className="h-4 w-4 text-muted" />
-                  Mi Perfil
+                  {t('nav.myProfile')}
                 </Link>
                 <div className="my-1 h-px bg-border" />
                 <button
@@ -134,7 +156,7 @@ export default function Navbar() {
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-destructive hover:bg-secondary transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
-                  Cerrar Sesion
+                  {t('nav.logout')}
                 </button>
               </div>
             )}
@@ -172,9 +194,18 @@ export default function Navbar() {
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
               >
                 <link.icon className="h-5 w-5 text-muted" />
-                {link.label}
+                {t(link.labelKey)}
               </Link>
             ))}
+
+            {/* Mobile locale toggle */}
+            <button
+              onClick={toggleLocale}
+              className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+            >
+              <Globe className="h-5 w-5 text-muted" />
+              {t('nav.language')}: <span className="uppercase font-semibold">{locale}</span>
+            </button>
 
             <div className="my-2 h-px bg-border" />
 
@@ -183,7 +214,7 @@ export default function Navbar() {
               className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-destructive hover:bg-secondary transition-colors"
             >
               <LogOut className="h-5 w-5" />
-              Cerrar Sesion
+              {t('nav.logout')}
             </button>
           </nav>
         </div>

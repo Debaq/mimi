@@ -148,6 +148,128 @@ CREATE TABLE IF NOT EXISTS resources (
 );
 
 -- =============================================
+-- Modo Detective Metodologico
+-- =============================================
+
+-- Casos del modo detective (protocolos con errores intencionales)
+CREATE TABLE IF NOT EXISTS detective_cases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    protocol_data TEXT NOT NULL DEFAULT '{}',
+    errors TEXT NOT NULL DEFAULT '[]',
+    difficulty INTEGER NOT NULL DEFAULT 1,
+    max_score INTEGER NOT NULL DEFAULT 100,
+    time_limit INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+-- Intentos del estudiante en modo detective
+CREATE TABLE IF NOT EXISTS detective_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    annotations TEXT DEFAULT '[]',
+    score INTEGER DEFAULT 0,
+    errors_found INTEGER DEFAULT 0,
+    errors_total INTEGER DEFAULT 0,
+    hints_used INTEGER DEFAULT 0,
+    time_spent INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'en_progreso' CHECK(status IN ('en_progreso', 'completado')),
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY (case_id) REFERENCES detective_cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- =============================================
+-- Modo Laboratorio Estadistico
+-- =============================================
+
+-- Experimentos del laboratorio
+CREATE TABLE IF NOT EXISTS lab_experiments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    dataset TEXT NOT NULL DEFAULT '[]',
+    dataset_headers TEXT NOT NULL DEFAULT '[]',
+    expected_analysis TEXT NOT NULL DEFAULT '{}',
+    instructions TEXT,
+    difficulty INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+-- Intentos del estudiante en laboratorio
+CREATE TABLE IF NOT EXISTS lab_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    experiment_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    analysis_results TEXT DEFAULT '{}',
+    interpretation TEXT,
+    score INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'en_progreso' CHECK(status IN ('en_progreso', 'completado')),
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY (experiment_id) REFERENCES lab_experiments(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- =============================================
+-- Simulador de Defensa de Tesis
+-- =============================================
+
+-- Sesiones de defensa simulada
+CREATE TABLE IF NOT EXISTS defense_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocol_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    questions TEXT NOT NULL DEFAULT '[]',
+    answers TEXT DEFAULT '[]',
+    scores TEXT DEFAULT '[]',
+    overall_score INTEGER DEFAULT 0,
+    time_limit INTEGER NOT NULL DEFAULT 30,
+    time_spent INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pendiente' CHECK(status IN ('pendiente', 'en_curso', 'completada')),
+    started_at DATETIME,
+    completed_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (protocol_id) REFERENCES protocols(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- =============================================
+-- Certificados digitales
+-- =============================================
+
+-- Tabla de certificados digitales
+CREATE TABLE IF NOT EXISTS certificates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocol_id INTEGER NOT NULL UNIQUE,
+    student_id INTEGER NOT NULL,
+    certificate_code TEXT NOT NULL UNIQUE,
+    student_name TEXT NOT NULL,
+    session_title TEXT NOT NULL,
+    approved_at TEXT NOT NULL,
+    issued_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (protocol_id) REFERENCES protocols(id),
+    FOREIGN KEY (student_id) REFERENCES users(id)
+);
+
+-- Tabla de rate limiting para proteccion contra fuerza bruta
+CREATE TABLE IF NOT EXISTS rate_limits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip_address TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    attempts INTEGER DEFAULT 1,
+    window_start TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ip_address, endpoint)
+);
+
+-- =============================================
 -- Indices para optimizar consultas
 -- =============================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -165,3 +287,13 @@ CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id);
 CREATE INDEX IF NOT EXISTS idx_activity_log_user ON activity_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_resources_type ON resources(type);
 CREATE INDEX IF NOT EXISTS idx_resources_category ON resources(category);
+CREATE INDEX IF NOT EXISTS idx_detective_cases_session ON detective_cases(session_id);
+CREATE INDEX IF NOT EXISTS idx_detective_attempts_case ON detective_attempts(case_id);
+CREATE INDEX IF NOT EXISTS idx_detective_attempts_student ON detective_attempts(student_id);
+CREATE INDEX IF NOT EXISTS idx_lab_experiments_session ON lab_experiments(session_id);
+CREATE INDEX IF NOT EXISTS idx_lab_attempts_experiment ON lab_attempts(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_lab_attempts_student ON lab_attempts(student_id);
+CREATE INDEX IF NOT EXISTS idx_defense_sessions_protocol ON defense_sessions(protocol_id);
+CREATE INDEX IF NOT EXISTS idx_defense_sessions_student ON defense_sessions(student_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_code ON certificates(certificate_code);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_ip ON rate_limits(ip_address, endpoint);

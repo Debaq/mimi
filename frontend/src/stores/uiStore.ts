@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { getLocale, setLocale as setI18nLocale } from '@/lib/i18n'
+import type { Locale } from '@/lib/i18n'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -24,11 +26,13 @@ applyThemeToDOM(initialTheme)
 interface UiState {
   sidebarOpen: boolean
   theme: Theme
+  locale: Locale
   activeModal: string | null
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   setTheme: (theme: Theme) => void
+  setLocale: (locale: Locale) => void
   openModal: (modalId: string) => void
   closeModal: () => void
 }
@@ -36,6 +40,7 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   sidebarOpen: true,
   theme: initialTheme,
+  locale: getLocale(),
   activeModal: null,
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -46,6 +51,11 @@ export const useUiStore = create<UiState>((set) => ({
     localStorage.setItem('mimi-theme', theme)
     applyThemeToDOM(theme)
     set({ theme })
+  },
+
+  setLocale: (locale: Locale) => {
+    setI18nLocale(locale)
+    set({ locale })
   },
 
   openModal: (modalId: string) => set({ activeModal: modalId }),

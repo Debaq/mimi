@@ -138,6 +138,137 @@ export interface DashboardStats {
   average_xp: number;
 }
 
+export interface Certificate {
+  id: number
+  protocol_id: number
+  student_id: number
+  certificate_code: string
+  student_name: string
+  session_title: string
+  approved_at: string
+  issued_at: string
+}
+
+export interface LabExperiment {
+  id: number
+  session_id: number
+  title: string
+  description: string
+  dataset: number[][]
+  dataset_headers: string[]
+  instructions: string
+  difficulty: number
+  attempt?: LabAttempt | null
+}
+
+export interface LabAttempt {
+  id: number
+  experiment_id: number
+  student_id: number
+  analysis_results: Record<string, unknown>
+  interpretation: string
+  score: number
+  status: 'en_progreso' | 'completado'
+  started_at?: string
+  completed_at?: string | null
+}
+
+// === Modo Detective Metodologico ===
+
+export interface DetectiveCase {
+  id: number
+  session_id: number
+  title: string
+  description: string
+  protocol_data: Record<string, unknown>
+  difficulty: number
+  max_score: number
+  time_limit: number
+  attempt?: DetectiveAttempt | null
+}
+
+export interface DetectiveAttempt {
+  id: number
+  case_id: number
+  student_id: number
+  annotations: DetectiveAnnotation[]
+  score: number
+  errors_found: number
+  errors_total: number
+  hints_used: number
+  time_spent: number
+  status: 'en_progreso' | 'completado'
+  started_at?: string
+  completed_at?: string | null
+}
+
+export interface DetectiveAnnotation {
+  field: string
+  error_id: string
+  explanation: string
+}
+
+export interface DetectiveError {
+  id: string
+  field: string
+  type: 'incoherencia' | 'ausencia' | 'contradiccion' | 'error_logico' | 'sesgo'
+  description: string
+  hint?: string
+  severity: 'alta' | 'media' | 'baja'
+}
+
+export interface DetectiveResult {
+  error_id: string
+  field: string
+  type: string
+  description: string
+  found: boolean
+  student_explanation: string | null
+  severity: string
+}
+
+export interface DetectiveSubmitResponse {
+  score: number
+  errors_found: number
+  errors_total: number
+  xp_earned: number
+  results: DetectiveResult[]
+}
+
+export interface DetectiveHintResponse {
+  hint: {
+    field: string
+    hint: string
+    severity: string
+  } | null
+  hints_used: number
+  score_penalty: number
+}
+
+// === Simulador de Defensa de Tesis ===
+
+export interface DefenseSession {
+  id: number
+  protocol_id: number
+  student_id: number
+  questions: DefenseQuestion[]
+  answers: string[]
+  scores: number[]
+  overall_score: number
+  time_limit: number
+  time_spent: number
+  status: 'pendiente' | 'en_curso' | 'completada'
+  started_at?: string
+  completed_at?: string | null
+  created_at?: string
+}
+
+export interface DefenseQuestion {
+  category: string
+  text: string
+  context?: string
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;

@@ -95,16 +95,16 @@ Estado actual del proyecto y lo que falta por implementar.
 - [ ] **Recuperacion de contrasena** — No hay flujo de "olvide mi contrasena"
 - [x] **Subida de avatar** — Endpoint POST /api/auth/avatar con validacion MIME y limite 2MB, UI clickeable en perfil
 
-### Prioridad BAJA (fases futuras del plan)
+### Prioridad BAJA (completado)
 
-- [ ] **Modo Detective Metodologico** — No implementado. Requiere: sistema de casos con errores marcados, interfaz de anotacion, arbol de errores, sistema de pistas
-- [ ] **Modo Laboratorio Estadistico** — No implementado. Requiere: carga de datasets, motor de analisis estadistico, visualizacion de resultados
-- [ ] **Simulador de defensa de tesis** — No implementado. Requiere: generacion de preguntas personalizadas, cronometro, evaluacion de respuestas
-- [ ] **Certificacion digital** — No implementado. Requiere: generacion de PDF/imagen, codigo QR verificable
-- [ ] **Rate limiting** — Proteger endpoints publicos (login, register) contra fuerza bruta
-- [ ] **Internacionalizacion** — Todo esta en espanol; no hay sistema i18n
-- [ ] **Integracion con LMS** — API para Moodle, Canvas, etc.
-- [ ] **App movil** — PWA o React Native
+- [x] **Modo Detective Metodologico** — Sistema de casos con errores, interfaz de anotacion, pistas con penalizacion, evaluacion automatica
+- [x] **Modo Laboratorio Estadistico** — Motor estadistico PHP (media, mediana, moda, varianza, correlacion, frecuencias), workbench interactivo, visualizaciones CSS
+- [x] **Simulador de defensa de tesis** — Panel de 3 sinodales, 5 preguntas personalizadas, cronometro, evaluacion por categoria, historial
+- [x] **Certificacion digital** — Generacion de certificado con codigo verificable, pagina publica de verificacion
+- [x] **Rate limiting** — Proteccion en login (5/15min) y register (3/60min) con tabla rate_limits e IP tracking
+- [x] **Internacionalizacion** — Sistema i18n ligero con ES/EN, hook useTranslation, toggle en Navbar, persistencia en localStorage
+- [x] **Integracion con LMS** — LTI 1.0 con OAuth, soporte Moodle/Canvas/generico, sincronizacion de calificaciones, webhooks
+- [x] **PWA** — Service Worker, manifest.json, cache strategies, iconos generados
 
 ---
 

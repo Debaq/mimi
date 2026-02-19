@@ -15,6 +15,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
+import VerifyCertificate from '@/pages/VerifyCertificate'
 
 // Student pages
 import StudentDashboard from '@/pages/student/Dashboard'
@@ -22,6 +23,10 @@ import StudentSessions from '@/pages/student/Sessions'
 import Constructor from '@/pages/student/Constructor'
 import Profile from '@/pages/student/Profile'
 import Resources from '@/pages/student/Resources'
+import Certificate from '@/pages/student/Certificate'
+import Laboratory from '@/pages/student/Laboratory'
+import Detective from '@/pages/student/Detective'
+import Defense from '@/pages/student/Defense'
 
 // Teacher pages
 import TeacherDashboard from '@/pages/teacher/Dashboard'
@@ -30,6 +35,7 @@ import CreateSession from '@/pages/teacher/CreateSession'
 import SessionDetail from '@/pages/teacher/SessionDetail'
 import Students from '@/pages/teacher/Students'
 import Library from '@/pages/teacher/Library'
+import LMSConfig from '@/pages/teacher/LMSConfig'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +79,8 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify" element={<VerifyCertificate />} />
+          <Route path="/verify/:code" element={<VerifyCertificate />} />
 
           {/* Student routes */}
           <Route
@@ -87,6 +95,10 @@ export default function App() {
             <Route path="/constructor/:sessionId" element={<Constructor />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/resources" element={<Resources />} />
+            <Route path="/certificate/:protocolId" element={<Certificate />} />
+            <Route path="/laboratory/:sessionId" element={<Laboratory />} />
+            <Route path="/detective/:sessionId" element={<Detective />} />
+            <Route path="/defense/:protocolId" element={<Defense />} />
           </Route>
 
           {/* Teacher routes */}
@@ -103,6 +115,7 @@ export default function App() {
             <Route path="/teacher/sessions/:id" element={<SessionDetail />} />
             <Route path="/teacher/students" element={<Students />} />
             <Route path="/teacher/library" element={<Library />} />
+            <Route path="/teacher/lms" element={<LMSConfig />} />
           </Route>
 
           {/* Fallback */}
