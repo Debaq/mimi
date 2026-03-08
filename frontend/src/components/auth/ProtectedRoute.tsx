@@ -3,11 +3,11 @@ import { useAuth } from '@/hooks/useAuth'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredRole?: 'estudiante' | 'docente'
+  requiredRole?: 'estudiante' | 'docente' | 'admin'
 }
 
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, user } = useAuth()
+  const { isAuthenticated, isLoading, effectiveRole, realRole } = useAuth()
 
   // Mostrar skeleton mientras se verifica la autenticacion
   if (isLoading) {
@@ -31,9 +31,15 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     return <Navigate to="/login" replace />
   }
 
-  // Verificar rol si se requiere
-  if (requiredRole && user?.role !== requiredRole) {
-    if (user?.role === 'docente') {
+  // Verificar rol: usar el rol efectivo (impersonado o real)
+  if (requiredRole && effectiveRole !== requiredRole) {
+    if (realRole === 'admin' && !effectiveRole) {
+      return <Navigate to="/admin" replace />
+    }
+    if (effectiveRole === 'admin') {
+      return <Navigate to="/admin" replace />
+    }
+    if (effectiveRole === 'docente') {
       return <Navigate to="/teacher" replace />
     }
     return <Navigate to="/dashboard" replace />

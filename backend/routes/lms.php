@@ -320,10 +320,14 @@ $router->post('/api/lms/launch', function ($router) {
     $token = Auth::generateToken($mimiUser);
 
     // Determinar URL del frontend para redireccion
-    $frontendUrl = 'http://localhost:5173';
+    $frontendUrl = getenv('FRONTEND_URL');
     $lmsConfigData = json_decode($lmsConfig['config'], true);
     if (isset($lmsConfigData['frontend_url'])) {
         $frontendUrl = $lmsConfigData['frontend_url'];
+    }
+    if (!$frontendUrl) {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $frontendUrl = $scheme . '://' . $_SERVER['HTTP_HOST'];
     }
 
     // Redirigir al frontend con el token

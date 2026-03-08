@@ -1,8 +1,14 @@
 import { getToken } from './auth'
 
 // En desarrollo usa el proxy de Vite (/api -> localhost:8080)
-// En produccion usa la variable de entorno o ruta relativa al backend
-const BASE_URL = import.meta.env.VITE_API_URL || '/api'
+// En produccion auto-detecta: {VITE_BASE}backend/api
+// Se puede sobreescribir con VITE_API_URL si el backend esta en otro lugar
+function getApiBaseUrl(): string {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL
+  if (import.meta.env.DEV) return '/api'
+  return import.meta.env.BASE_URL + 'backend/api'
+}
+const BASE_URL = getApiBaseUrl()
 
 class ApiError extends Error {
   status: number

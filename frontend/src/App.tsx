@@ -4,9 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastContainer } from '@/components/ui/Toast'
 import { useUiStore } from '@/stores/uiStore'
 
+
 // Layouts
 import StudentLayout from '@/components/layout/StudentLayout'
 import TeacherLayout from '@/components/layout/TeacherLayout'
+import AdminLayout from '@/components/layout/AdminLayout'
 
 // Auth
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
@@ -16,6 +18,8 @@ import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import VerifyCertificate from '@/pages/VerifyCertificate'
+import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
 
 // Student pages
 import StudentDashboard from '@/pages/student/Dashboard'
@@ -28,6 +32,10 @@ import Laboratory from '@/pages/student/Laboratory'
 import Detective from '@/pages/student/Detective'
 import Defense from '@/pages/student/Defense'
 
+// Admin pages
+import AdminDashboard from '@/pages/admin/Dashboard'
+import AdminUsers from '@/pages/admin/Users'
+
 // Teacher pages
 import TeacherDashboard from '@/pages/teacher/Dashboard'
 import TeacherSessions from '@/pages/teacher/Sessions'
@@ -36,6 +44,7 @@ import SessionDetail from '@/pages/teacher/SessionDetail'
 import Students from '@/pages/teacher/Students'
 import Library from '@/pages/teacher/Library'
 import LMSConfig from '@/pages/teacher/LMSConfig'
+import ProtocolReview from '@/pages/teacher/ProtocolReview'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,7 +82,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/+$/, '')}>
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
@@ -81,6 +90,8 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify" element={<VerifyCertificate />} />
           <Route path="/verify/:code" element={<VerifyCertificate />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Student routes */}
           <Route
@@ -101,6 +112,18 @@ export default function App() {
             <Route path="/defense/:protocolId" element={<Defense />} />
           </Route>
 
+          {/* Admin routes */}
+          <Route
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+          </Route>
+
           {/* Teacher routes */}
           <Route
             element={
@@ -115,6 +138,8 @@ export default function App() {
             <Route path="/teacher/sessions/:id" element={<SessionDetail />} />
             <Route path="/teacher/students" element={<Students />} />
             <Route path="/teacher/library" element={<Library />} />
+            <Route path="/teacher/constructor/:sessionId" element={<Constructor />} />
+            <Route path="/teacher/protocols/:protocolId" element={<ProtocolReview />} />
             <Route path="/teacher/lms" element={<LMSConfig />} />
           </Route>
 

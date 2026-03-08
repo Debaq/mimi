@@ -50,7 +50,9 @@ $router->post('/api/sessions', function ($router) {
     Middleware::requireRole('docente', $user);
 
     $request = $router->getRequest();
-    $body = $request->body();
+    $raw = file_get_contents('php://input');
+    $body = json_decode($raw, true);
+    if (!is_array($body)) $body = array();
 
     // Validar campos requeridos
     $errors = array();
@@ -72,8 +74,11 @@ $router->post('/api/sessions', function ($router) {
     );
 
     $mode = isset($body['mode']) ? $body['mode'] : 'constructor';
-    $difficulty = isset($body['difficulty']) ? (int)$body['difficulty'] : 1;
+    $difficulty = isset($body['difficulty']) ? $body['difficulty'] : 'basico';
     $status = isset($body['status']) ? $body['status'] : 'borrador';
+    if (!in_array($status, array('borrador', 'activa'))) {
+        $status = 'borrador';
+    }
     $config = isset($body['config']) ? json_encode($body['config']) : '{}';
     $problemStatement = isset($body['problem_statement']) ? $body['problem_statement'] : null;
     $startDate = isset($body['start_date']) ? $body['start_date'] : null;
@@ -113,6 +118,11 @@ $router->post('/api/sessions', function ($router) {
         'crear_sesion',
         json_encode(array('session_id' => $sessionId, 'title' => $body['title']))
     ));
+
+    // DEBUG TEMPORAL - ver en Network tab del navegador
+    $session['_debug_raw_body'] = $raw;
+    $session['_debug_status_received'] = isset($body['status']) ? $body['status'] : 'NO_HABIA_STATUS';
+    $session['_debug_status_used'] = $status;
 
     Response::success($session, 'Sesion creada exitosamente');
 });
@@ -200,6 +210,11 @@ $router->put('/api/sessions/{id}', function ($router) {
             $fields[] = $field . ' = ?';
             $values[] = $body[$field];
         }
+    }
+
+    // Validar status si se envio
+    if (array_key_exists('status', $body) && !in_array($body['status'], array('borrador', 'activa', 'cerrada'))) {
+        Response::error('Estado invalido', 400);
     }
 
     if (array_key_exists('config', $body)) {
@@ -310,6 +325,7 @@ $router->get('/api/sessions/{id}/students', function ($router) {
     $stmt = $db->prepare(
         'SELECT u.id, u.name, u.email, u.level, u.xp, u.avatar_url,
                 ss.status as enrollment_status, ss.joined_at,
+                (SELECT p.id FROM protocols p WHERE p.session_id = ? AND p.student_id = u.id LIMIT 1) as protocol_id,
                 (SELECT p.status FROM protocols p WHERE p.session_id = ? AND p.student_id = u.id LIMIT 1) as protocol_status,
                 (SELECT p.current_step FROM protocols p WHERE p.session_id = ? AND p.student_id = u.id LIMIT 1) as protocol_step
          FROM session_students ss
@@ -317,7 +333,7 @@ $router->get('/api/sessions/{id}/students', function ($router) {
          WHERE ss.session_id = ?
          ORDER BY ss.joined_at ASC'
     );
-    $stmt->execute(array($sessionId, $sessionId, $sessionId));
+    $stmt->execute(array($sessionId, $sessionId, $sessionId, $sessionId));
     $students = $stmt->fetchAll();
 
     Response::success($students);

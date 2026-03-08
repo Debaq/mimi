@@ -12,6 +12,9 @@ import {
   Users,
   FolderOpen,
   Library,
+  Settings,
+  Eye,
+  ArrowLeft,
   Moon,
   Sun,
   Globe,
@@ -38,8 +41,14 @@ const teacherLinks: NavLink[] = [
   { to: '/teacher/library', labelKey: 'nav.library', icon: Library },
 ]
 
+const adminLinks: NavLink[] = [
+  { to: '/admin', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/admin/users', labelKey: 'nav.users', icon: Users },
+  { to: '/admin/settings', labelKey: 'nav.settings', icon: Settings },
+]
+
 export default function Navbar() {
-  const { user, isStudent, isTeacher, logout } = useAuth()
+  const { user, isStudent, isTeacher, isAdmin, isImpersonating, realRole, canImpersonate, startImpersonation, stopImpersonation, logout } = useAuth()
   const navigate = useNavigate()
   const { theme, setTheme, locale, setLocale } = useUiStore()
   const { t } = useTranslation()
@@ -60,7 +69,7 @@ export default function Navbar() {
     setLocale(next)
   }
 
-  const links = isStudent ? studentLinks : isTeacher ? teacherLinks : []
+  const links = isAdmin ? adminLinks : isStudent ? studentLinks : isTeacher ? teacherLinks : []
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -73,17 +82,52 @@ export default function Navbar() {
   }, [])
 
   function handleLogout() {
+    stopImpersonation()
     logout()
     navigate('/login')
   }
 
-  const roleLabel = user?.role === 'estudiante' ? t('auth.student') : t('auth.teacher')
+  function handleImpersonate(role: 'estudiante' | 'docente') {
+    startImpersonation(role)
+    setDropdownOpen(false)
+    setMobileOpen(false)
+    navigate(role === 'docente' ? '/teacher' : '/dashboard')
+  }
+
+  function handleStopImpersonation() {
+    stopImpersonation()
+    navigate(realRole === 'admin' ? '/admin' : '/teacher')
+  }
+
+  const roleLabels: Record<string, string> = {
+    admin: t('auth.admin'),
+    docente: t('auth.teacher'),
+    estudiante: t('auth.student'),
+  }
+  const roleLabel = isImpersonating
+    ? `${roleLabels[realRole ?? '']} → ${roleLabels[isAdmin ? 'admin' : isTeacher ? 'docente' : 'estudiante']}`
+    : roleLabels[user?.role ?? ''] ?? ''
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-xl">
+    <>
+    {/* Banner de impersonacion */}
+    {isImpersonating && (
+      <div className="sticky top-0 z-[60] flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-sm font-medium text-white">
+        <Eye className="h-4 w-4" />
+        <span>{t('nav.viewingAs', { role: roleLabels[isAdmin ? 'admin' : isTeacher ? 'docente' : 'estudiante'] })}</span>
+        <button
+          onClick={handleStopImpersonation}
+          className="ml-2 flex items-center gap-1 rounded-lg bg-white/20 px-3 py-1 text-xs font-semibold transition-colors hover:bg-white/30"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          {t('nav.exitView')}
+        </button>
+      </div>
+    )}
+    <header className={cn("sticky z-50 w-full border-b border-border bg-card/80 backdrop-blur-xl", isImpersonating ? 'top-[40px]' : 'top-0')}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link to={isTeacher ? '/teacher' : '/dashboard'} className="flex items-center gap-2">
+        <Link to={isAdmin ? '/admin' : isTeacher ? '/teacher' : '/dashboard'} className="flex items-center gap-2">
           <GraduationCap className="h-7 w-7 text-primary" />
           <span className="text-xl font-bold text-foreground tracking-tight">MIMI</span>
         </Link>
@@ -143,13 +187,29 @@ export default function Navbar() {
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-card p-1 shadow-lg">
                 <Link
-                  to={isTeacher ? '/teacher' : '/profile'}
+                  to={isAdmin ? '/admin' : isTeacher ? '/teacher' : '/profile'}
                   onClick={() => setDropdownOpen(false)}
                   className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
                 >
                   <User className="h-4 w-4 text-muted" />
                   {t('nav.myProfile')}
                 </Link>
+                {canImpersonate.length > 0 && (
+                  <>
+                    <div className="my-1 h-px bg-border" />
+                    <p className="px-3 py-1.5 text-xs font-medium text-muted">{t('nav.viewAs')}</p>
+                    {canImpersonate.map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => handleImpersonate(role)}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
+                      >
+                        <Eye className="h-4 w-4 text-muted" />
+                        {roleLabels[role]}
+                      </button>
+                    ))}
+                  </>
+                )}
                 <div className="my-1 h-px bg-border" />
                 <button
                   onClick={handleLogout}
@@ -207,6 +267,24 @@ export default function Navbar() {
               {t('nav.language')}: <span className="uppercase font-semibold">{locale}</span>
             </button>
 
+            {/* Mobile view-as */}
+            {canImpersonate.length > 0 && (
+              <>
+                <div className="my-2 h-px bg-border" />
+                <p className="px-3 py-1.5 text-xs font-medium text-muted">{t('nav.viewAs')}</p>
+                {canImpersonate.map((role) => (
+                  <button
+                    key={role}
+                    onClick={() => handleImpersonate(role)}
+                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <Eye className="h-5 w-5 text-muted" />
+                    {roleLabels[role]}
+                  </button>
+                ))}
+              </>
+            )}
+
             <div className="my-2 h-px bg-border" />
 
             <button
@@ -220,5 +298,6 @@ export default function Navbar() {
         </div>
       )}
     </header>
+    </>
   )
 }

@@ -33,16 +33,21 @@ const teacherItems: NavItem[] = [
   { to: '/teacher/library', label: 'Biblioteca', icon: Library },
 ]
 
+const adminItems: NavItem[] = [
+  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/users', label: 'Usuarios', icon: Users },
+]
+
 export default function Sidebar() {
   const location = useLocation()
-  const { isTeacher } = useAuth()
+  const { isTeacher, isAdmin } = useAuth()
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
   const toggleSidebar = useUiStore((s) => s.toggleSidebar)
 
-  const items = isTeacher ? teacherItems : studentItems
+  const items = isAdmin ? adminItems : isTeacher ? teacherItems : studentItems
 
   function isActive(to: string) {
-    if (to === '/teacher' || to === '/dashboard') {
+    if (to === '/admin' || to === '/teacher' || to === '/dashboard') {
       return location.pathname === to
     }
     return location.pathname.startsWith(to)

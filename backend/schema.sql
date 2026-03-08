@@ -12,10 +12,12 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'estudiante' CHECK(role IN ('estudiante', 'docente')),
+    role TEXT NOT NULL DEFAULT 'estudiante' CHECK(role IN ('estudiante', 'docente', 'admin')),
     level INTEGER NOT NULL DEFAULT 1,
     xp INTEGER NOT NULL DEFAULT 0,
     avatar_url TEXT DEFAULT NULL,
+    password_reset_token TEXT DEFAULT NULL,
+    password_reset_expires DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -27,7 +29,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     title TEXT NOT NULL,
     description TEXT,
     mode TEXT NOT NULL DEFAULT 'constructor' CHECK(mode IN ('constructor', 'detective', 'laboratorio')),
-    difficulty INTEGER NOT NULL DEFAULT 1,
+    difficulty TEXT NOT NULL DEFAULT 'basico' CHECK(difficulty IN ('basico', 'intermedio', 'avanzado')),
     status TEXT NOT NULL DEFAULT 'borrador' CHECK(status IN ('borrador', 'activa', 'cerrada')),
     config TEXT DEFAULT '{}',
     problem_statement TEXT,

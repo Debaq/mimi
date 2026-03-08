@@ -29,6 +29,7 @@ interface CreateSessionData {
   description: string
   mode: Session['mode']
   difficulty: Session['difficulty']
+  status?: Session['status']
   problem_statement: string
   start_date: string
   end_date: string
@@ -45,6 +46,20 @@ export function useCreateSession() {
       api.post<ApiResponse<Session>>('/sessions', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    },
+  })
+}
+
+// Actualizar sesion
+export function useUpdateSession() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: number } & Partial<CreateSessionData & { status: Session['status'] }>) =>
+      api.put<ApiResponse<Session>>(`/sessions/${id}`, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      queryClient.invalidateQueries({ queryKey: ['sessions', variables.id] })
     },
   })
 }
@@ -74,5 +89,18 @@ export function useSessionStudents(sessionId: number | undefined) {
       api.get<ApiResponse<User[]>>(`/sessions/${sessionId}/students`),
     select: (data) => data.data,
     enabled: !!sessionId,
+  })
+}
+
+// Eliminar sesion
+export function useDeleteSession() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: number) =>
+      api.delete<ApiResponse<null>>(`/sessions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    },
   })
 }

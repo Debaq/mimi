@@ -47,8 +47,31 @@ class Middleware
      */
     public static function requireRole($role, $user)
     {
+        // Admin puede acceder a cualquier endpoint (bypass para "Ver como...")
+        if ($user['role'] === 'admin') {
+            return $user;
+        }
+        // Docente puede acceder a endpoints de estudiante (bypass para "Ver como...")
+        if ($user['role'] === 'docente' && $role === 'estudiante') {
+            return $user;
+        }
         if ($user['role'] !== $role) {
             Response::error('No tienes permisos para realizar esta accion. Se requiere rol: ' . $role, 403);
+        }
+        return $user;
+    }
+
+    /**
+     * Requerir cualquiera de los roles especificados
+     *
+     * @param array $roles Roles permitidos (ej: array('admin', 'docente'))
+     * @param array $user Datos del usuario
+     * @return array Los mismos datos del usuario
+     */
+    public static function requireAnyRole($roles, $user)
+    {
+        if (!in_array($user['role'], $roles)) {
+            Response::error('No tienes permisos para realizar esta accion. Se requiere uno de los roles: ' . implode(', ', $roles), 403);
         }
         return $user;
     }
@@ -61,7 +84,7 @@ class Middleware
      * @param int $maxAttempts Intentos maximos permitidos en la ventana
      * @param int $windowMinutes Duracion de la ventana en minutos
      */
-    public static function rateLimit($endpoint, $maxAttempts = 5, $windowMinutes = 15)
+    public static function rateLimit($endpoint, $maxAttempts = 30, $windowMinutes = 5)
     {
         // Obtener IP del cliente (con soporte para proxy/load balancer)
         $ip = isset($_SERVER['HTTP_X_FORWARDED_FOR'])
@@ -71,12 +94,8 @@ class Middleware
 
         $db = Database::getInstance();
 
-        // Limpieza periodica de registros viejos (1% de probabilidad)
-        if (mt_rand(1, 100) === 1) {
-            $db->prepare(
-                'DELETE FROM rate_limits WHERE datetime(window_start) < datetime("now", "-24 hours")'
-            )->execute();
-        }
+        // Limpieza: eliminar registros con ventana expirada (mas de 1 hora)
+        $db->exec('DELETE FROM rate_limits WHERE datetime(window_start) < datetime("now", "-1 hour")');
 
         // Buscar registro existente para esta IP + endpoint
         $stmt = $db->prepare(
@@ -86,35 +105,35 @@ class Middleware
         $record = $stmt->fetch();
 
         if ($record) {
-            // Calcular si la ventana sigue activa
             $windowStart = strtotime($record['window_start']);
             $windowEnd = $windowStart + ($windowMinutes * 60);
             $now = time();
 
             if ($now < $windowEnd) {
-                // Ventana activa: verificar intentos
                 if ((int)$record['attempts'] >= $maxAttempts) {
-                    $minutesLeft = (int)ceil(($windowEnd - $now) / 60);
+                    $secondsLeft = $windowEnd - $now;
+                    if ($secondsLeft > 60) {
+                        $timeMsg = (int)ceil($secondsLeft / 60) . ' minutos';
+                    } else {
+                        $timeMsg = $secondsLeft . ' segundos';
+                    }
                     Response::error(
-                        'Demasiados intentos. Intenta de nuevo en ' . $minutesLeft . ' minutos.',
+                        'Has superado el limite de intentos. Espera ' . $timeMsg . '.',
                         429
                     );
                 }
 
-                // Incrementar intentos
                 $stmt = $db->prepare(
                     'UPDATE rate_limits SET attempts = attempts + 1 WHERE id = ?'
                 );
                 $stmt->execute(array($record['id']));
             } else {
-                // Ventana expirada: resetear contador
                 $stmt = $db->prepare(
                     'UPDATE rate_limits SET attempts = 1, window_start = datetime("now") WHERE id = ?'
                 );
                 $stmt->execute(array($record['id']));
             }
         } else {
-            // No existe registro: crear uno nuevo
             $stmt = $db->prepare(
                 'INSERT INTO rate_limits (ip_address, endpoint, attempts, window_start) VALUES (?, ?, 1, datetime("now"))'
             );

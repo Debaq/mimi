@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function LoginForm() {
   const navigate = useNavigate()
@@ -45,7 +46,9 @@ export default function LoginForm() {
 
     try {
       await login(email, password)
-      navigate('/dashboard')
+      const user = useAuthStore.getState().user
+      const dest = user?.role === 'admin' ? '/admin' : user?.role === 'docente' ? '/teacher' : '/dashboard'
+      navigate(dest)
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message)
@@ -93,7 +96,15 @@ export default function LoginForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Contrasena</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Contrasena</Label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-primary hover:underline"
+              >
+                Olvidaste tu contrasena?
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
               <Input

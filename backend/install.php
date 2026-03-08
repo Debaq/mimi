@@ -191,6 +191,47 @@ try {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_rate_limits_ip ON rate_limits(ip_address, endpoint)');
     out('Tabla rate_limits verificada', 'success', $isCli);
 
+    // Asegurar columnas de password reset en users (migracion para DBs existentes)
+    $columns = $db->query("PRAGMA table_info(users)")->fetchAll();
+    $columnNames = array_map(function ($col) { return $col['name']; }, $columns);
+    if (!in_array('password_reset_token', $columnNames)) {
+        $db->exec('ALTER TABLE users ADD COLUMN password_reset_token TEXT DEFAULT NULL');
+        $db->exec('ALTER TABLE users ADD COLUMN password_reset_expires DATETIME DEFAULT NULL');
+        out('Columnas password_reset agregadas a users', 'success', $isCli);
+    } else {
+        out('Columnas password_reset ya existen en users', 'info', $isCli);
+    }
+
+    // Migracion: agregar rol 'admin' al CHECK constraint de users
+    // SQLite no permite ALTER CHECK, asi que recreamos la tabla si el CHECK actual no incluye 'admin'
+    $tableInfo = $db->query("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'")->fetch();
+    if ($tableInfo && strpos($tableInfo['sql'], "'admin'") === false) {
+        $db->exec('BEGIN');
+        $db->exec('ALTER TABLE users RENAME TO users_old');
+        $db->exec("CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'estudiante' CHECK(role IN ('estudiante', 'docente', 'admin')),
+            level INTEGER NOT NULL DEFAULT 1,
+            xp INTEGER NOT NULL DEFAULT 0,
+            avatar_url TEXT DEFAULT NULL,
+            password_reset_token TEXT DEFAULT NULL,
+            password_reset_expires DATETIME DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )");
+        $db->exec('INSERT INTO users SELECT * FROM users_old');
+        $db->exec('DROP TABLE users_old');
+        // Actualizar admin existente al nuevo rol
+        $db->exec("UPDATE users SET role = 'admin', name = 'Administrador' WHERE email = 'admin@mimi.edu'");
+        $db->exec('COMMIT');
+        out('Tabla users migrada con soporte para rol admin', 'success', $isCli);
+    } else {
+        out('Tabla users ya soporta rol admin', 'info', $isCli);
+    }
+
     // Asegurar tabla de certificados digitales
     $db->exec('CREATE TABLE IF NOT EXISTS certificates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -245,7 +286,7 @@ try {
     // Insertar usuario admin
     $adminHash = password_hash('admin123', PASSWORD_BCRYPT);
     $db->prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)')
-       ->execute(array('Administrador Docente', 'admin@mimi.edu', $adminHash, 'docente'));
+       ->execute(array('Administrador', 'admin@mimi.edu', $adminHash, 'admin'));
     out('Usuario admin creado', 'success', $isCli);
 
     // Insertar recursos de ejemplo
@@ -333,7 +374,7 @@ try {
         'Detective Metodologico - Grupo A',
         'Identifica errores en protocolos de investigacion',
         'detective',
-        1,
+        'basico',
         'activa',
         null,
         '2026-02-01',
@@ -535,14 +576,14 @@ try {
     if (!$isCli) {
         echo '<div class="result ok">';
         echo '<h3 style="color:#30D158">Instalacion completada</h3>';
-        echo '<p><strong>Admin:</strong> <span class="mono">admin@mimi.edu</span> / <span class="mono">admin123</span> (docente)</p>';
+        echo '<p><strong>Admin:</strong> <span class="mono">admin@mimi.edu</span> / <span class="mono">admin123</span> (admin)</p>';
         echo '<p style="margin-top:8px"><strong>API base:</strong> <span class="mono">' . htmlspecialchars($basePath) . '/api/</span></p>';
         echo '<p style="margin-top:12px;color:#FF3B30;font-weight:500">Elimina este archivo (install.php) despues de la instalacion.</p>';
         echo '</div>';
     } else {
         out('', 'info', $isCli);
         out('=== Instalacion completada ===', 'success', $isCli);
-        out('Admin: admin@mimi.edu / admin123 (docente)', 'info', $isCli);
+        out('Admin: admin@mimi.edu / admin123 (admin)', 'info', $isCli);
         out('API base: ' . ($basePath === '' ? '/' : $basePath) . '/api/', 'info', $isCli);
         out('ELIMINA install.php despues de instalar.', 'warning', $isCli);
     }

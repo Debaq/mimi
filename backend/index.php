@@ -78,6 +78,7 @@ require_once __DIR__ . '/routes/detective.php';
 require_once __DIR__ . '/routes/laboratory.php';
 require_once __DIR__ . '/routes/defense.php';
 require_once __DIR__ . '/routes/lms.php';
+require_once __DIR__ . '/routes/admin.php';
 
 // Despachar la peticion
 $router->dispatch();

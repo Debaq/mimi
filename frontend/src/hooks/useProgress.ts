@@ -9,12 +9,29 @@ interface Level {
   title: string
 }
 
+// Respuesta real de la API /progress/me
+interface ProgressApiResponse {
+  user: { id: number; name: string; level: number; xp: number }
+  level_progress: { xp_for_next_level: number | null }
+  badges: Badge[]
+  available_badges: Badge[]
+  stats: Record<string, number>
+}
+
 // Obtener mi progreso (nivel, XP, insignias)
 export function useProgressQuery() {
   return useQuery({
     queryKey: ['progress'],
-    queryFn: () => api.get<ApiResponse<ProgressInfo>>('/progress/me'),
-    select: (data) => data.data,
+    queryFn: () => api.get<ApiResponse<ProgressApiResponse>>('/progress/me'),
+    select: (data): ProgressInfo => {
+      const d = data.data
+      return {
+        level: d.user?.level ?? 1,
+        xp: d.user?.xp ?? 0,
+        next_level_xp: d.level_progress?.xp_for_next_level ?? 100,
+        badges: d.badges ?? [],
+      }
+    },
   })
 }
 
@@ -27,12 +44,20 @@ export function useLevelsQuery() {
   })
 }
 
+// Respuesta real de la API /progress/activity
+interface ActivityApiResponse {
+  activities: ActivityLog[]
+  total: number
+  limit: number
+  offset: number
+}
+
 // Obtener mi registro de actividad
 export function useActivityQuery() {
   return useQuery({
     queryKey: ['activity'],
-    queryFn: () => api.get<ApiResponse<ActivityLog[]>>('/progress/activity'),
-    select: (data) => data.data,
+    queryFn: () => api.get<ApiResponse<ActivityApiResponse>>('/progress/activity'),
+    select: (data) => data.data?.activities ?? [],
   })
 }
 

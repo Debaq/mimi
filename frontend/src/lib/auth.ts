@@ -18,7 +18,7 @@ interface JwtPayload {
   sub: number
   name: string
   email: string
-  role: 'estudiante' | 'docente'
+  role: 'estudiante' | 'docente' | 'admin'
   exp: number
   iat: number
 }

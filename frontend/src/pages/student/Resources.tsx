@@ -197,7 +197,7 @@ export default function Resources() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <Badge variant="outline" className="text-xs capitalize">
-                      {resource.category.replace('_', ' ')}
+                      {(resource.category ?? '').replace('_', ' ')}
                     </Badge>
                   </div>
 
@@ -206,13 +206,14 @@ export default function Resources() {
                   </h3>
 
                   <p className="text-xs text-muted line-clamp-2 mb-3">
-                    {resource.content.slice(0, 120)}...
+                    {(resource.content ?? '').slice(0, 120)}...
                   </p>
 
                   <div className="flex items-center justify-between">
                     <div className="flex flex-wrap gap-1">
-                      {resource.keywords
+                      {(resource.keywords ?? '')
                         .split(',')
+                        .filter(Boolean)
                         .slice(0, 2)
                         .map((kw) => (
                           <span
@@ -268,7 +269,7 @@ export default function Resources() {
                       {selectedResource.type}
                     </Badge>
                     <Badge variant="outline" className="text-xs capitalize">
-                      {selectedResource.category.replace('_', ' ')}
+                      {(selectedResource.category ?? '').replace('_', ' ')}
                     </Badge>
                   </div>
                 </div>
@@ -286,7 +287,7 @@ export default function Resources() {
             </div>
 
             <div className="mt-4 flex flex-wrap gap-1.5">
-              {selectedResource.keywords.split(',').map((kw) => (
+              {(selectedResource.keywords ?? '').split(',').filter(Boolean).map((kw) => (
                 <span
                   key={kw}
                   className="rounded-lg bg-secondary px-2 py-1 text-xs text-muted"

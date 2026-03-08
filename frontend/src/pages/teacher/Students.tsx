@@ -4,8 +4,6 @@ import {
   Search,
   Star,
   Zap,
-  FileText,
-  ChevronRight,
 } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -94,7 +92,7 @@ export default function TeacherStudents() {
                 </div>
 
                 {/* Stats */}
-                <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border/30 pt-4">
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/30 pt-4">
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1 text-xs text-muted mb-1">
                       <Star className="h-3 w-3 text-warning" />
@@ -109,21 +107,6 @@ export default function TeacherStudents() {
                     </div>
                     <p className="text-sm font-bold text-foreground">{student.xp}</p>
                   </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-xs text-muted mb-1">
-                      <FileText className="h-3 w-3 text-success" />
-                      Proto.
-                    </div>
-                    <p className="text-sm font-bold text-foreground">--</p>
-                  </div>
-                </div>
-
-                {/* View detail link */}
-                <div className="mt-3 flex justify-end">
-                  <span className="flex items-center gap-1 text-xs text-muted group-hover:text-primary transition-colors">
-                    Ver detalle
-                    <ChevronRight className="h-3 w-3" />
-                  </span>
                 </div>
               </CardContent>
             </Card>

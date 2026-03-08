@@ -425,7 +425,7 @@ export default function DetectiveGame({
                     </div>
 
                     <Select
-                      value={ann.error_id.startsWith('ann_') ? '' : ann.error_id}
+                      value={ann.error_id?.startsWith('ann_') ? '' : (ann.error_id ?? '')}
                       onChange={(e) =>
                         handleUpdateAnnotation(index, { error_id: e.target.value || ann.error_id })
                       }

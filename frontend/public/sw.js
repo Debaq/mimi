@@ -1,20 +1,13 @@
 // MIMI Service Worker
 // Version del cache - incrementar para invalidar cache anterior
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `mimi-static-${CACHE_VERSION}`;
-const DYNAMIC_CACHE = `mimi-dynamic-${CACHE_VERSION}`;
 
 // Assets estaticos que se cachean al instalar
 const STATIC_ASSETS = [
-  '/',
-  '/manifest.json',
+  './',
+  './manifest.json',
 ];
-
-// Patrones de API (network-first)
-const API_PATTERN = /\/api\//;
-
-// Patrones de assets estaticos (cache-first)
-const STATIC_PATTERN = /\.(js|css|woff2?|ttf|otf|eot|png|jpg|jpeg|gif|svg|ico|webp)$/;
 
 // --- Instalacion ---
 self.addEventListener('install', (event) => {
@@ -38,8 +31,8 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames
             .filter((name) => {
-              // Eliminar caches de versiones anteriores
-              return name.startsWith('mimi-') && name !== STATIC_CACHE && name !== DYNAMIC_CACHE;
+              // Eliminar TODOS los caches anteriores
+              return name.startsWith('mimi-') && name !== STATIC_CACHE;
             })
             .map((name) => {
               console.log('[SW] Eliminando cache antiguo:', name);
@@ -51,56 +44,47 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// --- Estrategias de Fetch ---
+// --- Listener de Fetch ---
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
 
-// Network-first: intenta red primero, cache como fallback
-async function networkFirst(request) {
-  try {
-    const networkResponse = await fetch(request);
-    // Solo cachear respuestas exitosas
-    if (networkResponse.ok) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    // Si no hay cache y es una navegacion, mostrar fallback offline
-    if (request.mode === 'navigate') {
-      return offlineFallback();
-    }
-    throw error;
-  }
-}
+  // Ignorar requests que no sean HTTP/HTTPS
+  if (!url.protocol.startsWith('http')) return;
 
-// Cache-first: intenta cache primero, red como fallback
-async function cacheFirst(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
+  // SOLO interceptar GET - dejar pasar POST/PUT/DELETE sin tocar
+  if (request.method !== 'GET') return;
+
+  // Ignorar requests a otros origenes
+  if (url.origin !== self.location.origin) return;
+
+  // API calls -> solo red, sin cache
+  if (url.pathname.includes('/api/')) {
+    event.respondWith(fetch(request));
+    return;
   }
 
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    // Para imagenes, devolver un placeholder transparente
-    if (request.destination === 'image') {
-      return new Response(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
-        { headers: { 'Content-Type': 'image/svg+xml' } }
-      );
-    }
-    throw error;
+  // Navegacion (paginas HTML) -> network-first con fallback offline
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => offlineFallback())
+    );
+    return;
   }
-}
+
+  // Assets estaticos (.js, .css, imagenes) -> network-first con cache fallback
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
+  );
+});
 
 // Pagina offline de fallback
 function offlineFallback() {
@@ -109,7 +93,6 @@ function offlineFallback() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0071E3">
   <title>MIMI - Sin conexion</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -168,37 +151,3 @@ function offlineFallback() {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
 }
-
-// --- Listener de Fetch ---
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Ignorar requests que no sean HTTP/HTTPS
-  if (!url.protocol.startsWith('http')) return;
-
-  // Ignorar requests a otros origenes (excepto CDN de fuentes comunes)
-  const allowedOrigins = [self.location.origin, 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'];
-  if (!allowedOrigins.some((origin) => url.href.startsWith(origin))) return;
-
-  // API calls -> Network-first
-  if (API_PATTERN.test(url.pathname)) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  // Navegacion (paginas HTML) -> Network-first
-  if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  // Assets estaticos -> Cache-first
-  if (STATIC_PATTERN.test(url.pathname)) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  // Todo lo demas -> Network-first
-  event.respondWith(networkFirst(request));
-});

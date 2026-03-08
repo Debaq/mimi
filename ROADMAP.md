@@ -92,7 +92,7 @@ Estado actual del proyecto y lo que falta por implementar.
 - [x] **Activity log consistente** — Todas las acciones registran en activity_log con nombres y XP consistentes
 - [x] **Notificaciones (Toast)** — Sistema de toasts globales implementado (success/error/info)
 - [x] **Modo oscuro** — Toggle en Navbar (Sun/Moon), persistencia en localStorage, soporte para tema del sistema, variables CSS dark
-- [ ] **Recuperacion de contrasena** — No hay flujo de "olvide mi contrasena"
+- [x] **Recuperacion de contrasena** — Flujo completo forgot/reset password con rate limiting, token seguro, email con mail(), páginas frontend con traducciones i18n
 - [x] **Subida de avatar** — Endpoint POST /api/auth/avatar con validacion MIME y limite 2MB, UI clickeable en perfil
 
 ### Prioridad BAJA (completado)
@@ -146,6 +146,19 @@ mimi/
 ├── README.md                   # Documento del proyecto (pitch/vision)
 └── ROADMAP.md                  # Este archivo
 ```
+
+---
+
+## Ideas futuras
+
+Funcionalidades nuevas que podrian agregarse en versiones posteriores.
+
+- [ ] **Revision entre pares (Peer Review)** — Estudiantes revisan protocolos de companeros antes de que el docente los vea. Refuerza pensamiento critico y reduce carga docente. Encaja con el sistema de XP/badges.
+- [ ] **Historial de versiones del protocolo** — Snapshot cada vez que el estudiante guarda un paso. Docente y estudiante ven como evoluciono el protocolo. Tabla `protocol_versions` + UI de diff.
+- [ ] **Plantillas por disciplina** — Plantillas pre-llenadas por area (salud, educacion, ingenieria, ciencias sociales) con ejemplos y vocabulario especifico. Los docentes podrian crear las suyas.
+- [ ] **Feedback con IA (LLM)** — Conectar con API de Claude para retroalimentacion contextual sobre cada seccion del protocolo. Primer nivel de feedback inmediato que complementa al docente. Detecta problemas semanticos que el validador basado en reglas no puede.
+- [ ] **Quiz de refuerzo con repeticion espaciada** — Mini-cuestionarios sobre conceptos metodologicos que aparecen periodicamente segun dificultades del estudiante. Aprovecha la gamificacion existente.
+- [ ] **Modo colaborativo** — Protocolos en equipo (2-3 estudiantes). Comun en investigacion real. Pueden dividirse pasos o co-editar.
 
 ---
 

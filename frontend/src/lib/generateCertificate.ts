@@ -102,8 +102,9 @@ function buildCertificateHtml(certificate: Certificate): string {
 
   const qrGrid = generateQRGrid(certificate.certificate_code)
 
-  // URL de verificacion (relativa al dominio actual)
-  const verifyUrl = `${window.location.origin}/verify/${certificate.certificate_code}`
+  // URL de verificacion (relativa al dominio y base path actual)
+  const base = import.meta.env.BASE_URL.replace(/\/+$/, '')
+  const verifyUrl = `${window.location.origin}${base}/verify/${certificate.certificate_code}`
 
   return `<!DOCTYPE html>
 <html lang="es">

@@ -5,7 +5,7 @@
 
 // POST /api/auth/register - Registrar nuevo usuario
 $router->post('/api/auth/register', function ($router) {
-    Middleware::rateLimit('register', 3, 60);
+    Middleware::rateLimit('register', 30, 60);
 
     $request = $router->getRequest();
     $body = $request->body();
@@ -85,7 +85,7 @@ $router->post('/api/auth/register', function ($router) {
 
 // POST /api/auth/login - Iniciar sesion
 $router->post('/api/auth/login', function ($router) {
-    Middleware::rateLimit('login', 5, 15);
+    Middleware::rateLimit('login', 30, 5);
 
     $request = $router->getRequest();
     $body = $request->body();
@@ -165,6 +165,10 @@ $router->get('/api/auth/me', function ($router) {
         $stmt = $db->prepare('SELECT COUNT(*) as total FROM micro_defenses md JOIN protocols p ON p.id = md.protocol_id WHERE p.student_id = ? AND md.status = ?');
         $stmt->execute(array($user['id'], 'aprobada'));
         $stats['defenses_passed'] = (int)$stmt->fetch()['total'];
+    } elseif ($user['role'] === 'admin') {
+        $stats['total_users'] = (int)$db->query("SELECT COUNT(*) as total FROM users")->fetch()['total'];
+        $stats['total_sessions'] = (int)$db->query("SELECT COUNT(*) as total FROM sessions")->fetch()['total'];
+        $stats['total_protocols'] = (int)$db->query("SELECT COUNT(*) as total FROM protocols")->fetch()['total'];
     } else {
         $stmt = $db->prepare('SELECT COUNT(*) as total FROM sessions WHERE teacher_id = ?');
         $stmt->execute(array($user['id']));
@@ -184,6 +188,136 @@ $router->get('/api/auth/me', function ($router) {
     $user['stats'] = $stats;
 
     Response::success($user);
+});
+
+// POST /api/auth/forgot-password - Solicitar reset de contrasena
+$router->post('/api/auth/forgot-password', function ($router) {
+    Middleware::rateLimit('forgot_password', 10, 15);
+
+    $request = $router->getRequest();
+    $body = $request->body();
+
+    // Validar email
+    if (empty($body['email'])) {
+        Response::error('El email es requerido', 400);
+    }
+    if (!filter_var($body['email'], FILTER_VALIDATE_EMAIL)) {
+        Response::error('El email no es valido', 400);
+    }
+
+    $genericMessage = 'Si ese correo esta registrado, recibiras instrucciones para restablecer tu contrasena.';
+
+    $db = Database::getInstance();
+    $email = strtolower(trim($body['email']));
+
+    // Buscar usuario
+    $stmt = $db->prepare('SELECT id, name, email FROM users WHERE email = ?');
+    $stmt->execute(array($email));
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        // No revelar si el email existe
+        Response::success(null, $genericMessage);
+    }
+
+    // Generar token seguro
+    $token = bin2hex(random_bytes(32));
+    $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+    // Guardar token en DB
+    $stmt = $db->prepare('UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?');
+    $stmt->execute(array($token, $expires, $user['id']));
+
+    // En modo DEBUG retornar el token directamente
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        Response::success(array('debug_token' => $token), $genericMessage);
+    }
+
+    // Enviar email con mail()
+    // Detectar URL del frontend: variable de entorno, o auto-detectar del header Referer/Origin
+    $frontendUrl = getenv('FRONTEND_URL');
+    if (!$frontendUrl) {
+        $frontendUrl = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+    }
+    if (!$frontendUrl && isset($_SERVER['HTTP_REFERER'])) {
+        $parsed = parse_url($_SERVER['HTTP_REFERER']);
+        $frontendUrl = $parsed['scheme'] . '://' . $parsed['host'];
+        if (isset($parsed['port'])) {
+            $frontendUrl .= ':' . $parsed['port'];
+        }
+    }
+    if (!$frontendUrl) {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $frontendUrl = $scheme . '://' . $_SERVER['HTTP_HOST'];
+    }
+    $resetLink = $frontendUrl . '/reset-password?token=' . $token;
+
+    $to = $user['email'];
+    $subject = 'MIMI - Restablecer contrasena';
+    $body = "Hola " . $user['name'] . ",\r\n\r\n"
+          . "Recibimos una solicitud para restablecer tu contrasena en MIMI.\r\n\r\n"
+          . "Haz clic en el siguiente enlace para crear una nueva contrasena:\r\n"
+          . $resetLink . "\r\n\r\n"
+          . "Este enlace expira en 1 hora.\r\n\r\n"
+          . "Si no solicitaste este cambio, puedes ignorar este correo.\r\n\r\n"
+          . "- El equipo de MIMI";
+    $headers = "From: noreply@mimi.edu\r\nContent-Type: text/plain; charset=UTF-8";
+
+    @mail($to, $subject, $body, $headers);
+
+    Response::success(null, $genericMessage);
+});
+
+// POST /api/auth/reset-password - Restablecer contrasena con token
+$router->post('/api/auth/reset-password', function ($router) {
+    Middleware::rateLimit('reset_password', 5, 15);
+
+    $request = $router->getRequest();
+    $body = $request->body();
+
+    // Validar campos
+    if (empty($body['token'])) {
+        Response::error('El token es requerido', 400);
+    }
+    if (empty($body['password'])) {
+        Response::error('La contrasena es requerida', 400);
+    }
+    if (strlen($body['password']) < 6) {
+        Response::error('La contrasena debe tener al menos 6 caracteres', 400);
+    }
+
+    $db = Database::getInstance();
+
+    // Buscar usuario con token valido y no expirado
+    $stmt = $db->prepare(
+        'SELECT id, name, email FROM users WHERE password_reset_token = ? AND password_reset_expires > ?'
+    );
+    $stmt->execute(array($body['token'], date('Y-m-d H:i:s')));
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        Response::error('Token invalido o expirado', 400);
+    }
+
+    // Actualizar contrasena y limpiar token
+    $passwordHash = Auth::hashPassword($body['password']);
+    $stmt = $db->prepare(
+        'UPDATE users SET password_hash = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE id = ?'
+    );
+    $stmt->execute(array($passwordHash, $user['id']));
+
+    // Registrar actividad
+    $stmt = $db->prepare(
+        'INSERT INTO activity_log (user_id, action, xp_earned, details) VALUES (?, ?, ?, ?)'
+    );
+    $stmt->execute(array(
+        $user['id'],
+        'password_reset',
+        0,
+        json_encode(array('timestamp' => date('Y-m-d H:i:s')))
+    ));
+
+    Response::success(null, 'Contrasena actualizada exitosamente');
 });
 
 // POST /api/auth/avatar - Subir avatar del usuario [AUTH]

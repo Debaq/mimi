@@ -2,7 +2,7 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'estudiante' | 'docente';
+  role: 'estudiante' | 'docente' | 'admin';
   level: number;
   xp: number;
   avatar_url: string | null;
@@ -49,6 +49,11 @@ export interface Protocol {
   submitted_at: string | null;
   created_at: string;
   updated_at: string;
+  // Campos opcionales que vienen del backend en GET /protocols/{id}
+  validations?: Validation[];
+  student_name?: string;
+  student_email?: string;
+  session_title?: string;
 }
 
 export interface Variable {

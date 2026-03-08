@@ -7,7 +7,6 @@ import {
   FileText,
   BookMarked,
   FolderOpen,
-  Edit,
   Trash2,
   X,
   Save,
@@ -358,13 +357,7 @@ export default function TeacherLibrary() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 ml-4 shrink-0">
-                      <button
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
+                    <div className="ml-4 shrink-0">
                       <button
                         onClick={() => handleDelete(resource.id)}
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-destructive/10 hover:text-destructive transition-colors"

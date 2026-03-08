@@ -1,20 +1,37 @@
-import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Wrench } from 'lucide-react'
+import { useParams, Link, useLocation } from 'react-router-dom'
+import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Card, CardContent } from '@/components/ui/Card'
 import { useSessionQuery } from '@/hooks/useSessions'
+import ConstructorWizard from '@/components/constructor/ConstructorWizard'
 
 export default function Constructor() {
   const { sessionId } = useParams<{ sessionId: string }>()
+  const location = useLocation()
   const id = sessionId ? Number(sessionId) : undefined
   const { data: session, isLoading } = useSessionQuery(id)
+
+  const isTeacherPreview = location.pathname.startsWith('/teacher/')
+  const backLink = isTeacherPreview ? `/teacher/sessions/${id}` : '/sessions'
+  const backLabel = isTeacherPreview ? 'Volver a la sesion' : 'Volver a sesiones'
+
+  if (!id || isNaN(id)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <AlertCircle className="size-10 text-destructive" />
+        <p className="text-destructive text-sm font-medium">ID de sesion invalido</p>
+        <Link to={backLink}>
+          <Button variant="outline">Volver</Button>
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
       {/* Back link */}
-      <Link to="/sessions" className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors">
+      <Link to={backLink} className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground transition-colors">
         <ArrowLeft className="h-4 w-4" />
-        Volver a sesiones
+        {backLabel}
       </Link>
 
       {/* Header */}
@@ -27,6 +44,7 @@ export default function Constructor() {
         <div>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
             Constructor de Protocolos
+            {isTeacherPreview && <span className="text-base font-normal text-muted ml-2">(Vista previa)</span>}
           </h1>
           {session && (
             <p className="mt-1 text-muted">
@@ -41,30 +59,7 @@ export default function Constructor() {
         </div>
       )}
 
-      {/* Placeholder for ConstructorWizard */}
-      <Card className="border-border/50 border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-20">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-4">
-            <Wrench className="h-8 w-8 text-primary" />
-          </div>
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            Constructor de Protocolos - Sesion {sessionId}
-          </h2>
-          <p className="text-sm text-muted text-center max-w-md">
-            El asistente de construccion de protocolos se cargara aqui. Este componente
-            guiara paso a paso la creacion del protocolo de investigacion.
-          </p>
-          {session?.problem_statement && (
-            <div className="mt-6 w-full max-w-lg rounded-xl bg-secondary/50 p-4">
-              <p className="text-xs font-medium text-muted mb-1">Planteamiento del problema:</p>
-              <p className="text-sm text-foreground">{session.problem_statement}</p>
-            </div>
-          )}
-          <Link to="/sessions" className="mt-6">
-            <Button variant="outline">Volver a Sesiones</Button>
-          </Link>
-        </CardContent>
-      </Card>
+      <ConstructorWizard sessionId={id} />
     </div>
   )
 }

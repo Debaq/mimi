@@ -27,14 +27,17 @@ interface AuthState {
   fetchMe: () => Promise<void>
 }
 
-interface LoginResponse {
-  token: string
-  user: User
+interface AuthResponse {
+  success: boolean
+  data: {
+    token: string
+    user: User
+  }
 }
 
-interface RegisterResponse {
-  token: string
-  user: User
+interface MeResponse {
+  success: boolean
+  data: User
 }
 
 export const useAuthStore = create<AuthState>((set) => {
@@ -72,14 +75,14 @@ export const useAuthStore = create<AuthState>((set) => {
     login: async (email: string, password: string) => {
       set({ isLoading: true })
       try {
-        const response = await api.post<LoginResponse>('/auth/login', {
+        const response = await api.post<AuthResponse>('/auth/login', {
           email,
           password,
         })
-        setToken(response.token)
+        setToken(response.data.token)
         set({
-          user: response.user,
-          token: response.token,
+          user: response.data.user,
+          token: response.data.token,
           isAuthenticated: true,
           isLoading: false,
         })
@@ -97,16 +100,16 @@ export const useAuthStore = create<AuthState>((set) => {
     ) => {
       set({ isLoading: true })
       try {
-        const response = await api.post<RegisterResponse>('/auth/register', {
+        const response = await api.post<AuthResponse>('/auth/register', {
           name,
           email,
           password,
           role,
         })
-        setToken(response.token)
+        setToken(response.data.token)
         set({
-          user: response.user,
-          token: response.token,
+          user: response.data.user,
+          token: response.data.token,
           isAuthenticated: true,
           isLoading: false,
         })
@@ -159,8 +162,8 @@ export const useAuthStore = create<AuthState>((set) => {
     fetchMe: async () => {
       set({ isLoading: true })
       try {
-        const user = await api.get<User>('/auth/me')
-        set({ user, isLoading: false })
+        const response = await api.get<MeResponse>('/auth/me')
+        set({ user: response.data, isLoading: false })
       } catch {
         removeToken()
         set({

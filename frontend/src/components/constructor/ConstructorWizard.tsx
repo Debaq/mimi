@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { Card, CardContent } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { api } from '@/lib/api'
-import { ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  AlertCircle,
+  Send,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Award,
+  Pencil,
+} from 'lucide-react'
 import StepProblem from './StepProblem'
 import StepQuestion from './StepQuestion'
 import StepObjectives from './StepObjectives'
@@ -35,7 +48,9 @@ export default function ConstructorWizard({ sessionId }: ConstructorWizardProps)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [showCoherenceMap, setShowCoherenceMap] = useState(false)
+  const [reopening, setReopening] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -84,6 +99,7 @@ export default function ConstructorWizard({ sessionId }: ConstructorWizardProps)
       )
       setProtocol(result.data)
       setSaveError(null)
+      setLastSavedAt(new Date())
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Error al guardar')
     } finally {
@@ -124,6 +140,22 @@ export default function ConstructorWizard({ sessionId }: ConstructorWizardProps)
     loadData()
   }
 
+  async function handleResubmit() {
+    if (!protocol) return
+    setReopening(true)
+    try {
+      // Enviar PUT para reabrir (el backend detecta status rechazado y lo cambia a en_progreso)
+      await api.put<ApiResponse<Protocol>>(`/protocols/${protocol.id}`, {
+        current_step: protocol.current_step,
+      })
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al reabrir el protocolo')
+    } finally {
+      setReopening(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="mx-auto max-w-3xl space-y-6 py-8">
@@ -147,6 +179,131 @@ export default function ConstructorWizard({ sessionId }: ConstructorWizardProps)
     )
   }
 
+  // --- Vistas según estado del protocolo ---
+
+  // Enviado: esperando revision
+  if (protocol.status === 'enviado') {
+    return (
+      <div className="mx-auto max-w-lg py-16">
+        <Card className="border-border/50">
+          <CardContent className="flex flex-col items-center py-12 px-6 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-4">
+              <Send className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Protocolo enviado
+            </h2>
+            <p className="text-sm text-muted mb-4">
+              Tu protocolo ha sido enviado y esta esperando la revision de tu docente.
+            </p>
+            {protocol.submitted_at && (
+              <div className="flex items-center gap-1.5 text-xs text-muted">
+                <Clock className="size-3.5" />
+                Enviado el{' '}
+                {new Date(protocol.submitted_at).toLocaleDateString('es-MX', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Aprobado
+  if (protocol.status === 'aprobado') {
+    return (
+      <div className="mx-auto max-w-lg py-16">
+        <Card className="border-success/30 bg-success/5">
+          <CardContent className="flex flex-col items-center py-12 px-6 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-success/10 mb-4">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Protocolo aprobado
+            </h2>
+            <p className="text-sm text-muted mb-6">
+              Tu protocolo de investigacion ha sido aprobado por tu docente.
+            </p>
+
+            {/* Feedback del docente si existe */}
+            {protocol.validations && protocol.validations.filter(v => v.field === 'revision_docente').length > 0 && (
+              <div className="w-full rounded-xl bg-card border border-border/50 p-4 mb-6 text-left">
+                <p className="text-xs font-medium text-muted mb-1">Retroalimentacion del docente</p>
+                {protocol.validations
+                  .filter(v => v.field === 'revision_docente')
+                  .map((v, i) => (
+                    <p key={i} className="text-sm text-foreground">{v.message}</p>
+                  ))
+                }
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <Link to={`/certificate/${protocol.id}`}>
+                <Button className="gap-2">
+                  <Award className="size-4" />
+                  Ver Certificado
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Rechazado: mostrar feedback + boton reenviar
+  if (protocol.status === 'rechazado') {
+    const docenteFeedback = protocol.validations?.filter(v => v.field === 'revision_docente') ?? []
+
+    return (
+      <div className="mx-auto max-w-lg py-16">
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="flex flex-col items-center py-12 px-6 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 mb-4">
+              <XCircle className="h-8 w-8 text-destructive" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Protocolo rechazado
+            </h2>
+            <p className="text-sm text-muted mb-4">
+              Tu docente ha rechazado tu protocolo. Revisa la retroalimentacion y realiza las correcciones necesarias.
+            </p>
+
+            {docenteFeedback.length > 0 && (
+              <div className="w-full rounded-xl bg-card border border-border/50 p-4 mb-6 text-left">
+                <p className="text-xs font-medium text-destructive mb-2">Retroalimentacion del docente</p>
+                {docenteFeedback.map((v, i) => (
+                  <p key={i} className="text-sm text-foreground">{v.message}</p>
+                ))}
+              </div>
+            )}
+
+            <Button
+              onClick={handleResubmit}
+              disabled={reopening}
+              className="gap-2"
+            >
+              {reopening ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Pencil className="size-4" />
+              )}
+              Editar y reenviar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // --- Estado normal: en_progreso → wizard completo ---
   return (
     <div className="mx-auto max-w-3xl space-y-8 py-8">
       {/* Stepper horizontal */}
@@ -267,6 +424,11 @@ export default function ConstructorWizard({ sessionId }: ConstructorWizardProps)
             <span className="flex items-center gap-1.5 text-xs text-destructive">
               <AlertCircle className="size-3" />
               {saveError}
+            </span>
+          )}
+          {!saving && !saveError && lastSavedAt && (
+            <span className="text-xs text-muted">
+              Guardado {lastSavedAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
           {!showCoherenceMap && (

@@ -96,3 +96,35 @@ export function useSubmitProtocol() {
     },
   })
 }
+
+// Revisar protocolo (docente aprueba/rechaza)
+interface ReviewProtocolData {
+  id: number
+  status: 'aprobado' | 'rechazado'
+  feedback?: string
+}
+
+export function useReviewProtocol() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, ...data }: ReviewProtocolData) =>
+      api.put<ApiResponse<null>>(`/protocols/${id}/review`, data),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['protocols', variables.id] })
+      queryClient.invalidateQueries({ queryKey: ['protocols'] })
+      queryClient.invalidateQueries({ queryKey: ['session-protocols'] })
+      queryClient.invalidateQueries({ queryKey: ['session-students'] })
+    },
+  })
+}
+
+// Listar protocolos de una sesion (docente)
+export function useSessionProtocols(sessionId: number | undefined) {
+  return useQuery({
+    queryKey: ['session-protocols', sessionId],
+    queryFn: () => api.get<ApiResponse<Protocol[]>>(`/sessions/${sessionId}/protocols`),
+    select: (data) => data.data,
+    enabled: !!sessionId,
+  })
+}

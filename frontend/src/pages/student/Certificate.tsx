@@ -66,7 +66,8 @@ export default function Certificate() {
 
   async function handleCopyLink() {
     if (!certificate) return
-    const url = `${window.location.origin}/verify/${certificate.certificate_code}`
+    const base = import.meta.env.BASE_URL.replace(/\/+$/, '')
+    const url = `${window.location.origin}${base}/verify/${certificate.certificate_code}`
     try {
       await navigator.clipboard.writeText(url)
       toast('success', 'Enlace de verificacion copiado')

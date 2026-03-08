@@ -23,11 +23,14 @@ function getInitialTheme(): Theme {
 const initialTheme = getInitialTheme()
 applyThemeToDOM(initialTheme)
 
+type ImpersonatedRole = 'estudiante' | 'docente' | null
+
 interface UiState {
   sidebarOpen: boolean
   theme: Theme
   locale: Locale
   activeModal: string | null
+  impersonatingRole: ImpersonatedRole
 
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -35,6 +38,8 @@ interface UiState {
   setLocale: (locale: Locale) => void
   openModal: (modalId: string) => void
   closeModal: () => void
+  startImpersonation: (role: 'estudiante' | 'docente') => void
+  stopImpersonation: () => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -42,6 +47,7 @@ export const useUiStore = create<UiState>((set) => ({
   theme: initialTheme,
   locale: getLocale(),
   activeModal: null,
+  impersonatingRole: null,
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
@@ -61,4 +67,8 @@ export const useUiStore = create<UiState>((set) => ({
   openModal: (modalId: string) => set({ activeModal: modalId }),
 
   closeModal: () => set({ activeModal: null }),
+
+  startImpersonation: (role: 'estudiante' | 'docente') => set({ impersonatingRole: role }),
+
+  stopImpersonation: () => set({ impersonatingRole: null }),
 }))

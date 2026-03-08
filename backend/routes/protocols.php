@@ -3,10 +3,9 @@
  * Rutas de protocolos de investigacion
  */
 
-// POST /api/protocols - Crear protocolo (solo estudiante)
+// POST /api/protocols - Crear protocolo (estudiante inscrito o docente dueno)
 $router->post('/api/protocols', function ($router) {
     $user = Middleware::authenticate();
-    Middleware::requireRole('estudiante', $user);
 
     $request = $router->getRequest();
     $body = $request->body();
@@ -17,15 +16,23 @@ $router->post('/api/protocols', function ($router) {
 
     $db = Database::getInstance();
 
-    // Verificar que esta inscrito en la sesion
-    $stmt = $db->prepare(
-        'SELECT ss.id FROM session_students ss
-         JOIN sessions s ON s.id = ss.session_id
-         WHERE ss.session_id = ? AND ss.student_id = ? AND s.status = ?'
-    );
-    $stmt->execute(array($body['session_id'], $user['id'], 'activa'));
-    if (!$stmt->fetch()) {
-        Response::error('No estas inscrito en esta sesion o la sesion no esta activa', 403);
+    // Verificar acceso: estudiante inscrito o docente dueno de la sesion
+    if ($user['role'] === 'docente') {
+        $stmt = $db->prepare('SELECT id FROM sessions WHERE id = ? AND teacher_id = ?');
+        $stmt->execute(array($body['session_id'], $user['id']));
+        if (!$stmt->fetch()) {
+            Response::error('No eres dueno de esta sesion', 403);
+        }
+    } else {
+        $stmt = $db->prepare(
+            'SELECT ss.id FROM session_students ss
+             JOIN sessions s ON s.id = ss.session_id
+             WHERE ss.session_id = ? AND ss.student_id = ? AND s.status = ?'
+        );
+        $stmt->execute(array($body['session_id'], $user['id'], 'activa'));
+        if (!$stmt->fetch()) {
+            Response::error('No estas inscrito en esta sesion o la sesion no esta activa', 403);
+        }
     }
 
     // Verificar si ya tiene un protocolo en esta sesion
@@ -167,9 +174,27 @@ $router->put('/api/protocols/{id}', function ($router) {
         Response::error('No tienes permisos para editar este protocolo', 403);
     }
 
-    // No editar protocolos enviados (a menos que sea docente)
-    if ($protocol['status'] === 'enviado' && $user['role'] !== 'docente') {
-        Response::error('El protocolo ya fue enviado y no puede editarse', 400);
+    // Estudiantes: reabrir si fue rechazado, bloquear si enviado o aprobado
+    if ($user['role'] === 'estudiante') {
+        if ($protocol['status'] === 'rechazado') {
+            // Reabrir protocolo rechazado
+            $stmtReopen = $db->prepare('UPDATE protocols SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+            $stmtReopen->execute(array('en_progreso', $protocolId));
+
+            $stmtLog = $db->prepare(
+                'INSERT INTO activity_log (user_id, action, xp_earned, details) VALUES (?, ?, ?, ?)'
+            );
+            $stmtLog->execute(array(
+                $user['id'],
+                'protocol_reopened',
+                0,
+                json_encode(array('protocol_id' => (int)$protocolId))
+            ));
+
+            $protocol['status'] = 'en_progreso';
+        } elseif (in_array($protocol['status'], array('enviado', 'aprobado'))) {
+            Response::error('El protocolo ya fue enviado y no puede editarse', 400);
+        }
     }
 
     // Campos actualizables
@@ -328,12 +353,12 @@ $router->post('/api/protocols/{id}/validate', function ($router) {
 // POST /api/protocols/{id}/submit - Enviar protocolo para revision
 $router->post('/api/protocols/{id}/submit', function ($router) {
     $user = Middleware::authenticate();
-    Middleware::requireRole('estudiante', $user);
 
     $protocolId = $router->getParam('id');
 
     $db = Database::getInstance();
 
+    // El dueno del protocolo (estudiante o docente probando)
     $stmt = $db->prepare('SELECT * FROM protocols WHERE id = ? AND student_id = ?');
     $stmt->execute(array($protocolId, $user['id']));
     $protocol = $stmt->fetch();
@@ -604,6 +629,44 @@ $router->put('/api/defenses/{id}', function ($router) {
         'status' => $status,
         'xp_earned' => $xpEarned
     ), $status === 'aprobada' ? 'Defensa aprobada' : 'Respuesta registrada, intenta mejorar tu argumento');
+});
+
+// GET /api/sessions/{id}/protocols - Listar todos los protocolos de una sesion (solo docente)
+$router->get('/api/sessions/{id}/protocols', function ($router) {
+    $user = Middleware::authenticate();
+    Middleware::requireRole('docente', $user);
+
+    $sessionId = $router->getParam('id');
+
+    $db = Database::getInstance();
+
+    // Verificar que la sesion pertenece al docente
+    $stmt = $db->prepare('SELECT id FROM sessions WHERE id = ? AND teacher_id = ?');
+    $stmt->execute(array($sessionId, $user['id']));
+    if (!$stmt->fetch()) {
+        Response::error('Sesion no encontrada o no tienes permisos', 404);
+    }
+
+    $stmt = $db->prepare(
+        'SELECT p.*, u.name as student_name, u.email as student_email
+         FROM protocols p
+         JOIN users u ON u.id = p.student_id
+         WHERE p.session_id = ?
+         ORDER BY p.updated_at DESC'
+    );
+    $stmt->execute(array($sessionId));
+    $protocols = $stmt->fetchAll();
+
+    foreach ($protocols as &$p) {
+        $p['specific_objectives'] = json_decode($p['specific_objectives'], true);
+        $p['variables'] = json_decode($p['variables'], true);
+        $p['research_design'] = json_decode($p['research_design'], true);
+        $p['sample'] = json_decode($p['sample'], true);
+        $p['instruments'] = json_decode($p['instruments'], true);
+    }
+    unset($p);
+
+    Response::success($protocols);
 });
 
 // GET /api/sessions/{id}/protocol - Obtener el protocolo del estudiante en una sesion

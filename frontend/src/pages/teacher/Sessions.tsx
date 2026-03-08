@@ -5,18 +5,19 @@ import {
   Search,
   BookOpen,
   Filter,
-  MoreVertical,
-  Edit,
-  Trash2,
   Users,
   Eye,
+  Trash2,
+  Play,
+  X,
 } from 'lucide-react'
 import { Pagination, usePagination } from '@/components/ui/Pagination'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { useSessionsQuery } from '@/hooks/useSessions'
+import { useSessionsQuery, useDeleteSession, useUpdateSession } from '@/hooks/useSessions'
+import { toast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
 import type { Session } from '@/types'
 
@@ -31,10 +32,31 @@ const filterOptions: { value: StatusFilter; label: string }[] = [
 
 export default function TeacherSessions() {
   const { data: sessions, isLoading } = useSessionsQuery()
+  const deleteSession = useDeleteSession()
+  const updateSession = useUpdateSession()
   const [filter, setFilter] = useState<StatusFilter>('todas')
   const [search, setSearch] = useState('')
-  const [menuOpen, setMenuOpen] = useState<number | null>(null)
   const [page, setPage] = useState(1)
+
+  async function handleDelete(id: number, title: string) {
+    if (!confirm(`Eliminar la sesion "${title}"? Esta accion no se puede deshacer.`)) return
+    try {
+      await deleteSession.mutateAsync(id)
+      toast('success', 'Sesion eliminada')
+    } catch {
+      toast('error', 'Error al eliminar la sesion')
+    }
+  }
+
+  async function handleToggleStatus(id: number, currentStatus: string) {
+    const newStatus = currentStatus === 'activa' ? 'cerrada' : 'activa'
+    try {
+      await updateSession.mutateAsync({ id, status: newStatus })
+      toast('success', newStatus === 'activa' ? 'Sesion publicada' : 'Sesion cerrada')
+    } catch {
+      toast('error', 'Error al cambiar el estado')
+    }
+  }
 
   const filtered = (sessions ?? []).filter((s) => {
     if (filter !== 'todas' && s.status !== filter) return false
@@ -193,45 +215,42 @@ export default function TeacherSessions() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="relative ml-4 shrink-0">
-                    <button
-                      onClick={() => setMenuOpen(menuOpen === session.id ? null : session.id)}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-secondary hover:text-foreground transition-colors"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-
-                    {menuOpen === session.id && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                        <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-border bg-card p-1 shadow-lg">
-                          <Link
-                            to={`/teacher/sessions/${session.id}`}
-                            onClick={() => setMenuOpen(null)}
-                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
-                          >
-                            <Eye className="h-4 w-4 text-muted" />
-                            Ver detalle
-                          </Link>
-                          <button
-                            onClick={() => setMenuOpen(null)}
-                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
-                          >
-                            <Edit className="h-4 w-4 text-muted" />
-                            Editar
-                          </button>
-                          <div className="my-1 h-px bg-border" />
-                          <button
-                            onClick={() => setMenuOpen(null)}
-                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-secondary transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Eliminar
-                          </button>
-                        </div>
-                      </>
+                  <div className="ml-4 shrink-0 flex items-center gap-1">
+                    {session.status === 'borrador' && (
+                      <button
+                        onClick={() => handleToggleStatus(session.id, session.status)}
+                        disabled={updateSession.isPending}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-success hover:bg-success/10 transition-colors"
+                        title="Publicar"
+                      >
+                        <Play className="h-4 w-4" />
+                      </button>
                     )}
+                    {session.status === 'activa' && (
+                      <button
+                        onClick={() => handleToggleStatus(session.id, session.status)}
+                        disabled={updateSession.isPending}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-secondary hover:text-foreground transition-colors"
+                        title="Cerrar sesion"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                    <Link
+                      to={`/teacher/sessions/${session.id}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-secondary hover:text-foreground transition-colors"
+                      title="Ver detalle"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(session.id, session.title)}
+                      disabled={deleteSession.isPending}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-destructive/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               </CardContent>

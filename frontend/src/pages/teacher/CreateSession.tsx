@@ -84,7 +84,7 @@ export default function CreateSession() {
         end_date: endDate || '',
         allow_retries: allowRetries,
         show_hints: showHints,
-        config: { initial_status: status },
+        status,
       })
       navigate('/teacher/sessions')
     } catch (err) {
